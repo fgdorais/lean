@@ -5,3 +5,4 @@ Author: Jeremy Avigad
 -/
 import .empty .unit .bool .num .string .nat .int .rat .fintype
 import .prod .sum .sigma .option .subtype .quotient .list .vector .finset .set .stream
+import .fin .fincat
