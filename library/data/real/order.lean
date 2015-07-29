@@ -17,7 +17,7 @@ open -[coercions] nat
 open eq eq.ops pnat
 local notation 0 := rat.of_num 0
 local notation 1 := rat.of_num 1
-notation 2 := pnat.pos (of_num 2) dec_trivial
+notation 2 := subtype.tag (of_num 2) dec_trivial
 
 ----------------------------------------------------------------------------------------------------
 
@@ -43,11 +43,21 @@ theorem sep_by_inv {a b : ℚ} (H : a > b) : ∃ N : ℕ+, a > (b + N⁻¹ + N�
     apply and.right Hc)
   end
 
-theorem helper_1 {a : ℚ} (H : a > 0) : -a + -a ≤ -a := sorry
+theorem helper_1 {a : ℚ} (H : a > 0) : -a + -a ≤ -a :=
+  !neg_add ▸ neg_le_neg (le_add_of_nonneg_left (le_of_lt H))
 
-theorem rewrite_helper8 (a b c : ℚ) : a - b = c - b + (a - c) := sorry -- simp
+theorem rewrite_helper8 (a b c : ℚ) : a - b = c - b + (a - c) :=
+  by rewrite[add_sub,rat.sub_add_cancel] ⬝ !rat.add.comm
 
-theorem nonneg_of_ge_neg_invs (a : ℚ) (H : ∀ n : ℕ+, -n⁻¹ ≤ a) : 0 ≤ a := sorry
+theorem nonneg_of_ge_neg_invs (a : ℚ) (H : ∀ n : ℕ+, -n⁻¹ ≤ a) : 0 ≤ a :=
+  rat.le_of_not_gt (suppose a < 0,
+    have H2 : 0 < -a, from neg_pos_of_neg this,
+   (rat.not_lt_of_ge !H) (iff.mp !lt_neg_iff_lt_neg (calc
+       (pceil (of_num 2 / -a))⁻¹ ≤ -a / of_num 2
+          : !inv_pceil_div dec_trivial H2
+                             ... < -a / 1
+          : div_lt_div_of_pos_of_lt_of_pos dec_trivial dec_trivial H2
+                             ... = -a : div_one)))
 
 ---------
 namespace s
@@ -66,9 +76,9 @@ theorem bdd_away_of_pos {s : seq} (Hs : regular s) (H : pos s) :
     existsi N,
     intro m Hm,
     have Habs : abs (s m - s n) ≥ s n - s m, by rewrite abs_sub; apply le_abs_self,
-    have Habs' : s m + abs (s m - s n) ≥ s n, from (iff.mp' (le_add_iff_sub_left_le _ _ _)) Habs,
+    have Habs' : s m + abs (s m - s n) ≥ s n, from (iff.mpr (le_add_iff_sub_left_le _ _ _)) Habs,
     have HN' : N⁻¹ + N⁻¹ ≤ s n - n⁻¹, begin
-        apply iff.mp' (le_add_iff_sub_right_le _ _ _),
+        apply iff.mpr (le_add_iff_sub_right_le _ _ _),
         rewrite [sub_neg_eq_add, add.comm, -add.assoc],
         apply le_of_lt HN
       end,
@@ -164,7 +174,7 @@ theorem pos_of_pos_equiv {s t : seq} (Hs : regular s) (Heq : s ≡ t) (Hp : pos 
     have Hs4 : N⁻¹ ≤ s (2 * 2 * N), from HN _ (!mul_le_mul_left),
     apply lt_of_lt_of_le,
     rotate 1,
-    apply iff.mp' (rat.add_le_add_right_iff _ _ _),
+    apply iff.mpr (rat.add_le_add_right_iff _ _ _),
     apply Hs4,
     rewrite [*pnat.mul.assoc, pnat.add_halves, -(add_halves N), rat.add_sub_cancel],
     apply inv_two_mul_lt_inv
@@ -443,7 +453,7 @@ theorem le_and_sep_of_lt {s t : seq} (Hs : regular s) (Ht : regular t) (Lst : s_
       ... ≥ 0 - n⁻¹: begin
                        apply rat.sub_le_sub_right,
                        apply le_of_lt,
-                       apply (iff.mp' (sub_pos_iff_lt _ _)),
+                       apply (iff.mpr (sub_pos_iff_lt _ _)),
                        apply HN
                      end
       ... = -n⁻¹ : by rewrite zero_sub),
@@ -464,7 +474,7 @@ theorem lt_of_le_and_sep {s t : seq} (Hs : regular s) (Ht : regular t) (H : s_le
     apply exists.elim Hlt,
     intro N HN,
     let LeN := Le N,
-    let HN' := (iff.mp' (neg_lt_neg_iff_lt _ _)) HN,
+    let HN' := (iff.mpr (neg_lt_neg_iff_lt _ _)) HN,
     rewrite [↑sadd at HN', ↑sneg at HN', neg_add at HN', neg_neg at HN', add.comm at HN'],
     let HN'' := not_le_of_gt HN',
     apply absurd LeN HN''
@@ -725,10 +735,11 @@ theorem not_lt_self (s : seq) : ¬ s_lt s s :=
     intro Hlt,
     rewrite [↑s_lt at Hlt, ↑pos at Hlt],
     apply exists.elim Hlt,
-    intro n Hn,
-    rewrite [↑sadd at Hn, ↑sneg at Hn, sub_self at Hn],
+    intro n Hn, esimp at Hn,
+    rewrite [↑sadd at Hn,↑sneg at Hn, sub_self at Hn],
     apply absurd Hn (rat.not_lt_of_ge (rat.le_of_lt !inv_pos))
   end
+
 
 theorem not_sep_self (s : seq) : ¬ s ≢ s :=
   begin
@@ -818,11 +829,11 @@ theorem sep_well_defined {s t u v : seq} (Hs : regular s) (Ht : regular t) (Hu :
     apply or.elim Hor,
     intro Hlt,
     apply or.inl,
-    apply iff.mp' (lt_well_defined Hs Ht Hu Hv Hsu Htv),
+    apply iff.mpr (lt_well_defined Hs Ht Hu Hv Hsu Htv),
     assumption,
     intro Hlt,
     apply or.inr,
-    apply iff.mp' (lt_well_defined Ht Hs Hv Hu Htv Hsu),
+    apply iff.mpr (lt_well_defined Ht Hs Hv Hu Htv Hsu),
     assumption
   end
 
@@ -919,7 +930,7 @@ theorem const_le_const_of_le {a b : ℚ} (H : a ≤ b) : s_le (const a) (const b
     apply rat.neg_nonpos_of_nonneg,
     apply rat.le_of_lt,
     apply inv_pos,
-    apply iff.mp' !rat.sub_nonneg_iff_le,
+    apply iff.mpr !rat.sub_nonneg_iff_le,
     apply H
   end
 

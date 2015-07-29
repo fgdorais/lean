@@ -12,13 +12,16 @@ inductive list (T : Type) : Type :=
 | nil {} : list T
 | cons   : T → list T → list T
 
+protected definition list.is_inhabited [instance] (A : Type) : inhabited (list A) :=
+inhabited.mk list.nil
+
 namespace list
 notation h :: t  := cons h t
 notation `[` l:(foldr `,` (h t, cons h t) nil `]`) := l
 
 variable {T : Type}
 
-lemma cons_ne_nil (a : T) (l : list T) : a::l ≠ [] :=
+lemma cons_ne_nil [simp] (a : T) (l : list T) : a::l ≠ [] :=
 by contradiction
 
 lemma head_eq_of_cons_eq {A : Type} {h₁ h₂ : A} {t₁ t₂ : list A} :
@@ -40,17 +43,17 @@ definition append : list T → list T → list T
 
 notation l₁ ++ l₂ := append l₁ l₂
 
-theorem append_nil_left (t : list T) : [] ++ t = t
+theorem append_nil_left [simp] (t : list T) : [] ++ t = t
 
-theorem append_cons (x : T) (s t : list T) : (x::s) ++ t = x::(s ++ t)
+theorem append_cons [simp] (x : T) (s t : list T) : (x::s) ++ t = x::(s ++ t)
 
-theorem append_nil_right : ∀ (t : list T), t ++ [] = t
+theorem append_nil_right [simp] : ∀ (t : list T), t ++ [] = t
 | []       := rfl
 | (a :: l) := calc
   (a :: l) ++ [] = a :: (l ++ []) : rfl
              ... = a :: l         : append_nil_right l
 
-theorem append.assoc : ∀ (s t u : list T), s ++ t ++ u = s ++ (t ++ u)
+theorem append.assoc [simp] : ∀ (s t u : list T), s ++ t ++ u = s ++ (t ++ u)
 | []       t u := rfl
 | (a :: l) t u :=
   show a :: (l ++ t ++ u) = (a :: l) ++ (t ++ u),
@@ -61,11 +64,11 @@ definition length : list T → nat
 | []       := 0
 | (a :: l) := length l + 1
 
-theorem length_nil : length (@nil T) = 0
+theorem length_nil [simp] : length (@nil T) = 0
 
-theorem length_cons (x : T) (t : list T) : length (x::t) = length t + 1
+theorem length_cons [simp] (x : T) (t : list T) : length (x::t) = length t + 1
 
-theorem length_append : ∀ (s t : list T), length (s ++ t) = length s + length t
+theorem length_append [simp] : ∀ (s t : list T), length (s ++ t) = length s + length t
 | []       t := calc
     length ([] ++ t)  = length t : rfl
                    ... = length [] + length t : zero_add
@@ -91,9 +94,9 @@ definition concat : Π (x : T), list T → list T
 | a []       := [a]
 | a (b :: l) := b :: concat a l
 
-theorem concat_nil (x : T) : concat x [] = [x]
+theorem concat_nil [simp] (x : T) : concat x [] = [x]
 
-theorem concat_cons (x y : T) (l : list T) : concat x (y::l)  = y::(concat x l)
+theorem concat_cons [simp] (x y : T) (l : list T) : concat x (y::l)  = y::(concat x l)
 
 theorem concat_eq_append (a : T) : ∀ (l : list T), concat a l = l ++ [a]
 | []       := rfl
@@ -101,7 +104,7 @@ theorem concat_eq_append (a : T) : ∀ (l : list T), concat a l = l ++ [a]
   show b :: (concat a l) = (b :: l) ++ (a :: []),
   by rewrite concat_eq_append
 
-theorem concat_ne_nil (a : T) : ∀ (l : list T), concat a l ≠ [] :=
+theorem concat_ne_nil [simp] (a : T) : ∀ (l : list T), concat a l ≠ [] :=
 by intro l; induction l; repeat contradiction
 
 /- last -/
@@ -111,16 +114,16 @@ definition last : Π l : list T, l ≠ [] → T
 | [a]         h := a
 | (a₁::a₂::l) h := last (a₂::l) !cons_ne_nil
 
-lemma last_singleton (a : T) (h : [a] ≠ []) : last [a] h = a :=
+lemma last_singleton [simp] (a : T) (h : [a] ≠ []) : last [a] h = a :=
 rfl
 
-lemma last_cons_cons (a₁ a₂ : T) (l : list T) (h : a₁::a₂::l ≠ []) : last (a₁::a₂::l) h = last (a₂::l) !cons_ne_nil :=
+lemma last_cons_cons [simp] (a₁ a₂ : T) (l : list T) (h : a₁::a₂::l ≠ []) : last (a₁::a₂::l) h = last (a₂::l) !cons_ne_nil :=
 rfl
 
 theorem last_congr {l₁ l₂ : list T} (h₁ : l₁ ≠ []) (h₂ : l₂ ≠ []) (h₃ : l₁ = l₂) : last l₁ h₁ = last l₂ h₂ :=
 by subst l₁
 
-theorem last_concat {x : T} : ∀ {l : list T} (h : concat x l ≠ []), last (concat x l) h = x
+theorem last_concat [simp] {x : T} : ∀ {l : list T} (h : concat x l ≠ []), last (concat x l) h = x
 | []          h := rfl
 | [a]         h := rfl
 | (a₁::a₂::l) h :=
@@ -139,13 +142,13 @@ definition reverse : list T → list T
 | []       := []
 | (a :: l) := concat a (reverse l)
 
-theorem reverse_nil : reverse (@nil T) = []
+theorem reverse_nil [simp] : reverse (@nil T) = []
 
-theorem reverse_cons (x : T) (l : list T) : reverse (x::l) = concat x (reverse l)
+theorem reverse_cons [simp] (x : T) (l : list T) : reverse (x::l) = concat x (reverse l)
 
-theorem reverse_singleton (x : T) : reverse [x] = [x]
+theorem reverse_singleton [simp] (x : T) : reverse [x] = [x]
 
-theorem reverse_append : ∀ (s t : list T), reverse (s ++ t) = (reverse t) ++ (reverse s)
+theorem reverse_append [simp] : ∀ (s t : list T), reverse (s ++ t) = (reverse t) ++ (reverse s)
 | []         t2 := calc
     reverse ([] ++ t2) = reverse t2                    : rfl
                 ...    = (reverse t2) ++ []           : append_nil_right
@@ -158,7 +161,7 @@ theorem reverse_append : ∀ (s t : list T), reverse (s ++ t) = (reverse t) ++ (
                         ...    = reverse t2 ++ concat a2 (reverse s2)   : concat_eq_append
                         ...    = reverse t2 ++ reverse (a2 :: s2)       : rfl
 
-theorem reverse_reverse : ∀ (l : list T), reverse (reverse l) = l
+theorem reverse_reverse [simp] : ∀ (l : list T), reverse (reverse l) = l
 | []       := rfl
 | (a :: l) := calc
     reverse (reverse (a :: l)) = reverse (concat a (reverse l))     : rfl
@@ -178,9 +181,9 @@ definition head [h : inhabited T] : list T → T
 | []       := arbitrary T
 | (a :: l) := a
 
-theorem head_cons [h : inhabited T] (a : T) (l : list T) : head (a::l) = a
+theorem head_cons [simp] [h : inhabited T] (a : T) (l : list T) : head (a::l) = a
 
-theorem head_append [h : inhabited T] (t : list T) : ∀ {s : list T}, s ≠ [] → head (s ++ t) = head s
+theorem head_append [simp] [h : inhabited T] (t : list T) : ∀ {s : list T}, s ≠ [] → head (s ++ t) = head s
 | []       H := absurd rfl H
 | (a :: s) H :=
   show head (a :: (s ++ t)) = head (a :: s),
@@ -190,14 +193,14 @@ definition tail : list T → list T
 | []       := []
 | (a :: l) := l
 
-theorem tail_nil : tail (@nil T) = []
+theorem tail_nil [simp] : tail (@nil T) = []
 
-theorem tail_cons (a : T) (l : list T) : tail (a::l) = l
+theorem tail_cons [simp] (a : T) (l : list T) : tail (a::l) = l
 
 theorem cons_head_tail [h : inhabited T] {l : list T} : l ≠ [] → (head l)::(tail l) = l :=
 list.cases_on l
-  (assume H : [] ≠ [], absurd rfl H)
-  (take x l, assume H : x::l ≠ [], rfl)
+  (suppose [] ≠ [], absurd rfl this)
+  (take x l, suppose x::l ≠ [], rfl)
 
 /- list membership -/
 
@@ -208,13 +211,13 @@ definition mem : T → list T → Prop
 notation e ∈ s := mem e s
 notation e ∉ s := ¬ e ∈ s
 
-theorem mem_nil_iff (x : T) : x ∈ [] ↔ false :=
+theorem mem_nil_iff [simp] (x : T) : x ∈ [] ↔ false :=
 iff.rfl
 
 theorem not_mem_nil (x : T) : x ∉ [] :=
 iff.mp !mem_nil_iff
 
-theorem mem_cons (x : T) (l : list T) : x ∈ x :: l :=
+theorem mem_cons [simp] (x : T) (l : list T) : x ∈ x :: l :=
 or.inl rfl
 
 theorem mem_cons_of_mem (y : T) {x : T} {l : list T} : x ∈ l → x ∈ y :: l :=
@@ -227,36 +230,36 @@ theorem eq_or_mem_of_mem_cons {x y : T} {l : list T} : x ∈ y::l → x = y ∨ 
 assume h, h
 
 theorem mem_singleton {x a : T} : x ∈ [a] → x = a :=
-assume h : x ∈ [a], or.elim (eq_or_mem_of_mem_cons h)
-  (λ xeqa : x = a, xeqa)
-  (λ xinn : x ∈ [], absurd xinn !not_mem_nil)
+suppose x ∈ [a], or.elim (eq_or_mem_of_mem_cons this)
+  (suppose x = a, this)
+  (suppose x ∈ [], absurd this !not_mem_nil)
 
 theorem mem_of_mem_cons_of_mem {a b : T} {l : list T} : a ∈ b::l → b ∈ l → a ∈ l :=
 assume ainbl binl, or.elim (eq_or_mem_of_mem_cons ainbl)
-  (λ aeqb : a = b, by substvars; exact binl)
-  (λ ainl : a ∈ l, ainl)
+  (suppose a = b, by substvars; exact binl)
+  (suppose a ∈ l, this)
 
 theorem mem_or_mem_of_mem_append {x : T} {s t : list T} : x ∈ s ++ t → x ∈ s ∨ x ∈ t :=
 list.induction_on s or.inr
   (take y s,
     assume IH : x ∈ s ++ t → x ∈ s ∨ x ∈ t,
-    assume H1 : x ∈ y::s ++ t,
-    have H2 : x = y ∨ x ∈ s ++ t, from H1,
-    have H3 : x = y ∨ x ∈ s ∨ x ∈ t, from or_of_or_of_imp_right H2 IH,
-    iff.elim_right or.assoc H3)
+    suppose x ∈ y::s ++ t,
+    have x = y ∨ x ∈ s ++ t, from this,
+    have x = y ∨ x ∈ s ∨ x ∈ t, from or_of_or_of_imp_right this IH,
+    iff.elim_right or.assoc this)
 
 theorem mem_append_of_mem_or_mem {x : T} {s t : list T} : x ∈ s ∨ x ∈ t → x ∈ s ++ t :=
 list.induction_on s
   (take H, or.elim H false.elim (assume H, H))
   (take y s,
     assume IH : x ∈ s ∨ x ∈ t → x ∈ s ++ t,
-    assume H : x ∈ y::s ∨ x ∈ t,
-      or.elim H
-        (assume H1,
-          or.elim (eq_or_mem_of_mem_cons H1)
-            (take H2 : x = y, or.inl H2)
-            (take H2 : x ∈ s, or.inr (IH (or.inl H2))))
-        (assume H1 : x ∈ t, or.inr (IH (or.inr H1))))
+    suppose x ∈ y::s ∨ x ∈ t,
+      or.elim this
+        (suppose x ∈ y::s,
+          or.elim (eq_or_mem_of_mem_cons this)
+            (suppose x = y, or.inl this)
+            (suppose x ∈ s, or.inr (IH (or.inl this))))
+        (suppose x ∈ t, or.inr (IH (or.inr this))))
 
 theorem mem_append_iff (x : T) (s t : list T) : x ∈ s ++ t ↔ x ∈ s ∨ x ∈ t :=
 iff.intro mem_or_mem_of_mem_append mem_append_of_mem_or_mem
@@ -272,23 +275,27 @@ theorem not_mem_append {x : T} {s t : list T} : x ∉ s → x ∉ t → x ∉ s+
   (λ xins, by contradiction)
   (λ xint, by contradiction)
 
+lemma length_pos_of_mem {a : T} : ∀ {l : list T}, a ∈ l → 0 < length l
+| []     := assume Pinnil, by contradiction
+| (b::l) := assume Pin, !zero_lt_succ
+
 local attribute mem [reducible]
 local attribute append [reducible]
 theorem mem_split {x : T} {l : list T} : x ∈ l → ∃s t : list T, l = s ++ (x::t) :=
 list.induction_on l
-  (take H : x ∈ [], false.elim (iff.elim_left !mem_nil_iff H))
+  (suppose x ∈ [], false.elim (iff.elim_left !mem_nil_iff this))
   (take y l,
     assume IH : x ∈ l → ∃s t : list T, l = s ++ (x::t),
-    assume H : x ∈ y::l,
-    or.elim (eq_or_mem_of_mem_cons H)
-      (assume H1 : x = y,
-        exists.intro [] (!exists.intro (H1 ▸ rfl)))
-      (assume H1 : x ∈ l,
-        obtain s (H2 : ∃t : list T, l = s ++ (x::t)), from IH H1,
+    suppose x ∈ y::l,
+    or.elim (eq_or_mem_of_mem_cons this)
+      (suppose x = y,
+        exists.intro [] (!exists.intro (this ▸ rfl)))
+      (suppose x ∈ l,
+        obtain s (H2 : ∃t : list T, l = s ++ (x::t)), from IH this,
         obtain t (H3 : l = s ++ (x::t)), from H2,
-        have H4 : y :: l = (y::s) ++ (x::t),
+        have y :: l = (y::s) ++ (x::t),
           from H3 ▸ rfl,
-        !exists.intro (!exists.intro H4)))
+        !exists.intro (!exists.intro this)))
 
 theorem mem_append_left {a : T} {l₁ : list T} (l₂ : list T) : a ∈ l₁ → a ∈ l₁ ++ l₂ :=
 assume ainl₁, mem_append_of_mem_or_mem (or.inl ainl₁)
@@ -304,22 +311,21 @@ list.rec_on l
     decidable.rec_on iH
       (assume Hp : x ∈ l,
         decidable.rec_on (H x h)
-          (assume Heq : x = h,
-            decidable.inl (or.inl Heq))
-          (assume Hne : x ≠ h,
+          (suppose x = h,
+            decidable.inl (or.inl this))
+          (suppose x ≠ h,
             decidable.inl (or.inr Hp)))
-      (assume Hn : ¬x ∈ l,
+      (suppose ¬x ∈ l,
         decidable.rec_on (H x h)
-          (assume Heq : x = h,
-            decidable.inl (or.inl Heq))
-          (assume Hne : x ≠ h,
-            have H1 : ¬(x = h ∨ x ∈ l), from
-              assume H2 : x = h ∨ x ∈ l, or.elim H2
-                (assume Heq, by contradiction)
-                (assume Hp,  by contradiction),
-            have H2 : ¬x ∈ h::l, from
-              iff.elim_right (not_iff_not_of_iff !mem_cons_iff) H1,
-            decidable.inr H2)))
+          (suppose x = h, decidable.inl (or.inl this))
+          (suppose x ≠ h,
+            have ¬(x = h ∨ x ∈ l), from
+              suppose x = h ∨ x ∈ l, or.elim this
+                (suppose x = h, by contradiction)
+                (suppose x ∈ l,  by contradiction),
+            have ¬x ∈ h::l, from
+              iff.elim_right (not_iff_not_of_iff !mem_cons_iff) this,
+            decidable.inr this)))
 
 theorem mem_of_ne_of_mem {x y : T} {l : list T} (H₁ : x ≠ y) (H₂ : x ∈ y :: l) : x ∈ l :=
 or.elim (eq_or_mem_of_mem_cons H₂) (λe, absurd e H₁) (λr, r)
@@ -340,16 +346,16 @@ definition sublist (l₁ l₂ : list T) := ∀ ⦃a : T⦄, a ∈ l₁ → a ∈
 
 infix `⊆` := sublist
 
-theorem nil_sub (l : list T) : [] ⊆ l :=
+theorem nil_sub [simp] (l : list T) : [] ⊆ l :=
 λ b i, false.elim (iff.mp (mem_nil_iff b) i)
 
-theorem sub.refl (l : list T) : l ⊆ l :=
+theorem sub.refl [simp] (l : list T) : l ⊆ l :=
 λ b i, i
 
 theorem sub.trans {l₁ l₂ l₃ : list T} (H₁ : l₁ ⊆ l₂) (H₂ : l₂ ⊆ l₃) : l₁ ⊆ l₃ :=
 λ b i, H₂ (H₁ i)
 
-theorem sub_cons (a : T) (l : list T) : l ⊆ a::l :=
+theorem sub_cons [simp] (a : T) (l : list T) : l ⊆ a::l :=
 λ b i, or.inr i
 
 theorem sub_of_cons_sub {a : T} {l₁ l₂ : list T} : a::l₁ ⊆ l₂ → l₁ ⊆ l₂ :=
@@ -360,35 +366,35 @@ theorem cons_sub_cons  {l₁ l₂ : list T} (a : T) (s : l₁ ⊆ l₂) : (a::l�
   (λ e : b = a,  or.inl e)
   (λ i : b ∈ l₁, or.inr (s i))
 
-theorem sub_append_left (l₁ l₂ : list T) : l₁ ⊆ l₁++l₂ :=
-λ b i, iff.mp' (mem_append_iff b l₁ l₂) (or.inl i)
+theorem sub_append_left [simp] (l₁ l₂ : list T) : l₁ ⊆ l₁++l₂ :=
+λ b i, iff.mpr (mem_append_iff b l₁ l₂) (or.inl i)
 
-theorem sub_append_right (l₁ l₂ : list T) : l₂ ⊆ l₁++l₂ :=
-λ b i, iff.mp' (mem_append_iff b l₁ l₂) (or.inr i)
+theorem sub_append_right [simp] (l₁ l₂ : list T) : l₂ ⊆ l₁++l₂ :=
+λ b i, iff.mpr (mem_append_iff b l₁ l₂) (or.inr i)
 
 theorem sub_cons_of_sub (a : T) {l₁ l₂ : list T} : l₁ ⊆ l₂ → l₁ ⊆ (a::l₂) :=
 λ (s : l₁ ⊆ l₂) (x : T) (i : x ∈ l₁), or.inr (s i)
 
 theorem sub_app_of_sub_left (l l₁ l₂ : list T) : l ⊆ l₁ → l ⊆ l₁++l₂ :=
 λ (s : l ⊆ l₁) (x : T) (xinl : x ∈ l),
-  have xinl₁ : x ∈ l₁, from s xinl,
-  mem_append_of_mem_or_mem (or.inl xinl₁)
+  have x ∈ l₁, from s xinl,
+  mem_append_of_mem_or_mem (or.inl this)
 
 theorem sub_app_of_sub_right (l l₁ l₂ : list T) : l ⊆ l₂ → l ⊆ l₁++l₂ :=
 λ (s : l ⊆ l₂) (x : T) (xinl : x ∈ l),
-  have xinl₁ : x ∈ l₂, from s xinl,
-  mem_append_of_mem_or_mem (or.inr xinl₁)
+  have x ∈ l₂, from s xinl,
+  mem_append_of_mem_or_mem (or.inr this)
 
 theorem cons_sub_of_sub_of_mem {a : T} {l m : list T} : a ∈ m → l ⊆ m → a::l ⊆ m :=
 λ (ainm : a ∈ m) (lsubm : l ⊆ m) (x : T) (xinal : x ∈ a::l), or.elim (eq_or_mem_of_mem_cons xinal)
-  (assume xeqa : x = a, by substvars; exact ainm)
-  (assume xinl : x ∈ l, lsubm xinl)
+  (suppose x = a, by substvars; exact ainm)
+  (suppose x ∈ l, lsubm this)
 
 theorem app_sub_of_sub_of_sub {l₁ l₂ l : list T} : l₁ ⊆ l → l₂ ⊆ l → l₁++l₂ ⊆ l :=
 λ (l₁subl : l₁ ⊆ l) (l₂subl : l₂ ⊆ l) (x : T) (xinl₁l₂ : x ∈ l₁++l₂),
   or.elim (mem_or_mem_of_mem_append xinl₁l₂)
-    (λ xinl₁ : x ∈ l₁, l₁subl xinl₁)
-    (λ xinl₂ : x ∈ l₂, l₂subl xinl₂)
+    (suppose x ∈ l₁, l₁subl this)
+    (suppose x ∈ l₂, l₂subl this)
 
 /- find -/
 section
@@ -399,7 +405,7 @@ definition find : T → list T → nat
 | a []       := 0
 | a (b :: l) := if a = b then 0 else succ (find a l)
 
-theorem find_nil (x : T) : find x [] = 0
+theorem find_nil [simp] (x : T) : find x [] = 0
 
 theorem find_cons (x y : T) (l : list T) : find x (y::l) = if x = y then 0 else succ (find x l)
 
@@ -411,16 +417,16 @@ assume n, if_neg n
 
 theorem find_of_not_mem {l : list T} {x : T} : ¬x ∈ l → find x l = length l :=
 list.rec_on l
-   (assume P₁ : ¬x ∈ [], _)
+   (suppose ¬x ∈ [], _)
    (take y l,
       assume iH : ¬x ∈ l → find x l = length l,
-      assume P₁ : ¬x ∈ y::l,
-      have P₂ : ¬(x = y ∨ x ∈ l), from iff.elim_right (not_iff_not_of_iff !mem_cons_iff) P₁,
-      have P₃ : ¬x = y ∧ ¬x ∈ l, from (iff.elim_left not_or_iff_not_and_not P₂),
+      suppose ¬x ∈ y::l,
+      have ¬(x = y ∨ x ∈ l), from iff.elim_right (not_iff_not_of_iff !mem_cons_iff) this,
+      have ¬x = y ∧ ¬x ∈ l, from (iff.elim_left not_or_iff_not_and_not this),
       calc
         find x (y::l) = if x = y then 0 else succ (find x l) : !find_cons
-                  ... = succ (find x l)                      : if_neg (and.elim_left P₃)
-                  ... = succ (length l)                      : {iH (and.elim_right P₃)}
+                  ... = succ (find x l)                      : if_neg (and.elim_left this)
+                  ... = succ (length l)                      : {iH (and.elim_right this)}
                   ... = length (y::l)                        : !length_cons⁻¹)
 
 lemma find_le_length : ∀ {a} {l : list T}, find a l ≤ length l
@@ -461,16 +467,16 @@ definition nth : list T → nat → option T
 | (a :: l) 0     := some a
 | (a :: l) (n+1) := nth l n
 
-theorem nth_zero (a : T) (l : list T) : nth (a :: l) 0 = some a
+theorem nth_zero [simp] (a : T) (l : list T) : nth (a :: l) 0 = some a
 
-theorem nth_succ (a : T) (l : list T) (n : nat) : nth (a::l) (succ n) = nth l n
+theorem nth_succ [simp] (a : T) (l : list T) (n : nat) : nth (a::l) (succ n) = nth l n
 
 theorem nth_eq_some : ∀ {l : list T} {n : nat}, n < length l → Σ a : T, nth l n = some a
 | []     n        h := absurd h !not_lt_zero
 | (a::l) 0        h := ⟨a, rfl⟩
 | (a::l) (succ n) h :=
-  have aux : n < length l,                 from lt_of_succ_lt_succ h,
-  obtain (r : T) (req : nth l n = some r), from nth_eq_some aux,
+  have n < length l,                       from lt_of_succ_lt_succ h,
+  obtain (r : T) (req : nth l n = some r), from nth_eq_some this,
   ⟨r, by rewrite [nth_succ, req]⟩
 
 open decidable
@@ -559,34 +565,142 @@ list.induction_on l
          exists.intro xs (qhead x xs),
        by rewrite aeqx; exact aux)
     (λ ainxs : a ∈ xs,
-       have ex : ∃l', xs ≈ a|l', from r ainxs,
-       obtain (l' : list A) (q : xs ≈ a|l'), from ex,
-       have q₂ : x::xs ≈ a | x::l', from qcons x q,
-       exists.intro (x::l') q₂))
+       have ∃l', xs ≈ a|l', from r ainxs,
+       obtain (l' : list A) (q : xs ≈ a|l'), from this,
+       have x::xs ≈ a | x::l', from qcons x q,
+       exists.intro (x::l') this))
 
 theorem qeq_split {a : A} {l l' : list A} : l'≈a|l → ∃l₁ l₂, l = l₁++l₂ ∧ l' = l₁++(a::l₂) :=
 take q, qeq.induction_on q
   (λ t,
-    have aux : t = []++t ∧ a::t = []++(a::t), from and.intro rfl rfl,
-    exists.intro [] (exists.intro t aux))
+    have t = []++t ∧ a::t = []++(a::t), from and.intro rfl rfl,
+    exists.intro [] (exists.intro t this))
   (λ b t t' q r,
     obtain (l₁ l₂ : list A) (h : t = l₁++l₂ ∧ t' = l₁++(a::l₂)), from r,
-    have aux : b::t = (b::l₁)++l₂ ∧ b::t' = (b::l₁)++(a::l₂),
+    have b::t = (b::l₁)++l₂ ∧ b::t' = (b::l₁)++(a::l₂),
       begin
         rewrite [and.elim_right h, and.elim_left h],
         constructor, repeat reflexivity
       end,
-    exists.intro (b::l₁) (exists.intro l₂ aux))
+    exists.intro (b::l₁) (exists.intro l₂ this))
 
 theorem sub_of_mem_of_sub_of_qeq {a : A} {l : list A} {u v : list A} : a ∉ l → a::l ⊆ v → v≈a|u → l ⊆ u :=
 λ (nainl : a ∉ l) (s : a::l ⊆ v) (q : v≈a|u) (x : A) (xinl : x ∈ l),
-  have xinv : x ∈ v, from s (or.inr xinl),
-  have xinau : x ∈ a::u, from mem_cons_of_qeq q x xinv,
-  or.elim (eq_or_mem_of_mem_cons xinau)
-    (λ xeqa : x = a, by substvars; contradiction)
-    (λ xinu : x ∈ u, xinu)
+  have x ∈ v,    from s (or.inr xinl),
+  have x ∈ a::u, from mem_cons_of_qeq q x this,
+  or.elim (eq_or_mem_of_mem_cons this)
+    (suppose x = a, by substvars; contradiction)
+    (suppose x ∈ u, this)
 end qeq
+
+section firstn
+variable {A : Type}
+
+definition firstn : nat → list A → list A
+| 0     l      := []
+| (n+1) []     := []
+| (n+1) (a::l) := a :: firstn n l
+
+lemma firstn_zero : ∀ (l : list A), firstn 0 l = [] :=
+by intros; reflexivity
+
+lemma firstn_nil : ∀ n, firstn n [] = ([] : list A)
+| 0     := rfl
+| (n+1) := rfl
+
+lemma firstn_cons : ∀ n (a : A) (l : list A), firstn (succ n) (a::l) = a :: firstn n l :=
+by intros; reflexivity
+
+lemma firstn_all : ∀ (l : list A), firstn (length l) l = l
+| []     := rfl
+| (a::l) := begin unfold [length, firstn], rewrite firstn_all end
+
+lemma firstn_all_of_ge : ∀ {n} {l : list A}, n ≥ length l → firstn n l = l
+| 0     []     h := rfl
+| 0     (a::l) h := absurd h (not_le_of_gt !succ_pos)
+| (n+1) []     h := rfl
+| (n+1) (a::l) h := begin unfold firstn, rewrite [firstn_all_of_ge (le_of_succ_le_succ h)] end
+
+lemma firstn_firstn : ∀ (n m) (l : list A), firstn n (firstn m l) = firstn (min n m) l
+| n         0        l      := by rewrite [min_zero, firstn_zero, firstn_nil]
+| 0         m        l      := by rewrite [zero_min]
+| (succ n)  (succ m) nil    := by rewrite [*firstn_nil]
+| (succ n)  (succ m) (a::l) := by rewrite [*firstn_cons, firstn_firstn, min_succ_succ]
+
+lemma length_firstn_le : ∀ (n) (l : list A), length (firstn n l) ≤ n
+| 0        l      := by rewrite [firstn_zero]
+| (succ n) (a::l) := by rewrite [firstn_cons, length_cons, add_one]; apply succ_le_succ; apply length_firstn_le
+| (succ n) []     := by rewrite [firstn_nil, length_nil]; apply zero_le
+
+lemma length_firstn_eq : ∀ (n) (l : list A), length (firstn n l) = min n (length l)
+| 0        l      := by rewrite [firstn_zero, zero_min]
+| (succ n) (a::l) := by rewrite [firstn_cons, *length_cons, *add_one, min_succ_succ, length_firstn_eq]
+| (succ n) []     := by rewrite [firstn_nil]
+end firstn
+
+section count
+variable {A : Type}
+variable [decA : decidable_eq A]
+include decA
+
+definition count (a : A) : list A → nat
+| []      := 0
+| (x::xs) := if a = x then succ (count xs) else count xs
+
+lemma count_nil (a : A) : count a [] = 0 :=
+rfl
+
+lemma count_cons (a b : A) (l : list A) : count a (b::l) = if a = b then succ (count a l) else count a l :=
+rfl
+
+lemma count_cons_eq (a : A) (l : list A) : count a (a::l) = succ (count a l) :=
+if_pos rfl
+
+lemma count_cons_of_ne {a b : A} (h : a ≠ b) (l : list A) : count a (b::l) = count a l :=
+if_neg h
+
+lemma count_cons_ge_count (a b : A) (l : list A) : count a (b::l) ≥ count a l :=
+by_cases
+  (suppose a = b, begin subst b, rewrite count_cons_eq, apply le_succ end)
+  (suppose a ≠ b, begin rewrite (count_cons_of_ne this), apply le.refl end)
+
+lemma count_singleton (a : A) : count a [a] = 1 :=
+by rewrite count_cons_eq
+
+lemma count_append (a : A) : ∀ l₁ l₂, count a (l₁++l₂) = count a l₁ + count a l₂
+| []      l₂ := by rewrite [append_nil_left, count_nil, zero_add]
+| (b::l₁) l₂ := by_cases
+  (suppose a = b, by rewrite [-this, append_cons, *count_cons_eq, succ_add, count_append])
+  (suppose a ≠ b, by rewrite [append_cons, *count_cons_of_ne this, count_append])
+
+lemma count_concat (a : A) (l : list A) : count a (concat a l) = succ (count a l) :=
+by rewrite [concat_eq_append, count_append, count_singleton]
+
+lemma mem_of_count_gt_zero : ∀ {a : A} {l : list A}, count a l > 0 → a ∈ l
+| a []     h := absurd h !lt.irrefl
+| a (b::l) h := by_cases
+  (suppose a = b, begin subst b, apply mem_cons end)
+  (suppose a ≠ b,
+   have count a l > 0, by rewrite [count_cons_of_ne this at h]; exact h,
+   have a ∈ l,    from mem_of_count_gt_zero this,
+   show a ∈ b::l, from mem_cons_of_mem _ this)
+
+lemma count_gt_zero_of_mem : ∀ {a : A} {l : list A}, a ∈ l → count a l > 0
+| a []     h := absurd h !not_mem_nil
+| a (b::l) h := or.elim h
+  (suppose a = b, begin subst b, rewrite count_cons_eq, apply zero_lt_succ end)
+  (suppose a ∈ l, calc
+   count a (b::l) ≥ count a l : count_cons_ge_count
+           ...    > 0         : count_gt_zero_of_mem this)
+
+lemma count_eq_zero_of_not_mem {a : A} {l : list A} (h : a ∉ l) : count a l = 0 :=
+match count a l with
+| 0        := suppose count a l = 0, this
+| (succ n) := suppose count a l = succ n, absurd (mem_of_count_gt_zero (begin rewrite this, exact dec_trivial end)) h
+end rfl
+
+end count
 end list
 
-attribute list.has_decidable_eq  [instance]
-attribute list.decidable_mem [instance]
+attribute list.has_decidable_eq [instance]
+attribute list.decidable_mem    [instance]

@@ -8,7 +8,7 @@
 (require 'rx)
 
 (defconst lean-keywords
-  '("import" "prelude" "tactic_hint" "protected" "private" "definition" "renaming"
+  '("import" "prelude" "tactic_hint" "protected" "private" "noncomputable" "definition" "renaming"
     "hiding" "exposing" "parameter" "parameters" "begin" "begin+" "proof" "qed" "conjecture" "constant" "constants"
     "hypothesis" "lemma" "corollary" "variable" "variables" "premise" "premises"
     "print" "theorem" "example" "abbreviation" "abstract"
@@ -16,7 +16,7 @@
     "alias" "help" "environment" "options" "precedence" "reserve"
     "match" "infix" "infixl" "infixr" "notation" "postfix" "prefix"
     "tactic_infix" "tactic_infixl" "tactic_infixr" "tactic_notation" "tactic_postfix" "tactic_prefix"
-    "eval" "check" "end" "reveal"
+    "eval" "check" "end" "reveal" "this" "suppose"
     "using" "namespace" "section" "fields" "find_decl"
     "attribute" "local" "set_option" "extends" "include" "omit" "classes"
     "instances" "coercions" "metaclasses" "raw" "migrate" "replacing")
@@ -119,17 +119,17 @@
      (,(rx symbol-start "_" symbol-end) . 'font-lock-preprocessor-face)
      ;; modifiers
      (,(rx (or "\[persistent\]" "\[notation\]" "\[visible\]" "\[instance\]" "\[trans-instance\]" "\[class\]" "\[parsing-only\]"
-               "\[coercion\]" "\[unfold-f\]" "\[constructor\]" "\[reducible\]"
+               "\[coercion\]" "\[unfold-full\]" "\[constructor\]" "\[reducible\]"
                "\[irreducible\]" "\[semireducible\]" "\[quasireducible\]" "\[wf\]"
                "\[whnf\]" "\[multiple-instances\]" "\[none\]"
                "\[decls\]" "\[declarations\]" "\[coercions\]" "\[classes\]"
-               "\[symm\]" "\[subst\]" "\[refl\]" "\[trans\]" "\[rewrite\]"
+               "\[symm\]" "\[subst\]" "\[refl\]" "\[trans\]" "\[simp\]" "\[congr\]"
                "\[notations\]" "\[abbreviations\]" "\[begin-end-hints\]" "\[tactic-hints\]"
                "\[reduce-hints\]" "\[unfold-hints\]" "\[aliases\]" "\[eqv\]" "\[localrefinfo\]"))
       . 'font-lock-doc-face)
      (,(rx "\[priority" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
      (,(rx "\[recursor" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
-     (,(rx "\[unfold-c" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
+     (,(rx "\[unfold" (zero-or-more (not (any "\]"))) "\]") . font-lock-doc-face)
      ;; tactics
      ("cases[ \t\n]+[^ \t\n]+[ \t\n]+\\(with\\)" (1 'font-lock-constant-face))
      (,(rx (not (any "\.")) word-start
@@ -138,10 +138,10 @@
                 "apply" "fapply" "eapply" "rename" "intro" "intros" "all_goals" "fold" "focus" "focus_at"
                 "generalize" "generalizes" "clear" "clears" "revert" "reverts" "back" "beta" "done" "exact" "rexact"
                 "refine" "repeat" "whnf" "rotate" "rotate_left" "rotate_right" "inversion" "cases" "rewrite"
-                "xrewrite" "krewrite" "esimp" "unfold" "change" "check_expr" "contradiction"
+                "xrewrite" "krewrite" "simp" "esimp" "unfold" "change" "check_expr" "contradiction"
                 "exfalso" "split" "existsi" "constructor" "fconstructor" "left" "right" "injection" "congruence" "reflexivity"
                 "symmetry" "transitivity" "state" "induction" "induction_using"
-                "substvars" "now"))
+                "substvars" "now" "with_options"))
            word-end)
       (1 'font-lock-constant-face))
      ;; Types
@@ -160,7 +160,7 @@
 (defconst lean-info-font-lock-defaults
   (let ((new-entries
          `(;; Please add more after this:
-           (,(rx word-start (group (+ wordchar)) word-end (+ white) ":")
+           (,(rx (group (+ symbol-start (+ (or word (char ?₁ ?₂ ?₃ ?₄ ?₅ ?₆ ?₇ ?₈ ?₉ ?₀))) symbol-end (* white))) ":")
             (1 'font-lock-variable-name-face))
            (,(rx white ":" white)
             . 'font-lock-keyword-face)

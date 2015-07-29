@@ -19,7 +19,7 @@ definition absurd_a_lt_a {B : Type} {a : A} [s : strict_order A] (H : a < a) : B
 absurd H (lt.irrefl a)
 
 structure ordered_semiring [class] (A : Type)
-  extends semiring A, ordered_cancel_comm_monoid A, zero_ne_one_class A :=
+  extends semiring A, ordered_cancel_comm_monoid A :=
 (mul_le_mul_of_nonneg_left: ∀a b c, le a b → le zero c → le (mul c a) (mul c b))
 (mul_le_mul_of_nonneg_right: ∀a b c, le a b → le zero c → le (mul a c) (mul b c))
 (mul_lt_mul_of_pos_left: ∀a b c, lt a b → lt zero c → lt (mul c a) (mul c b))
@@ -100,12 +100,15 @@ section
 end
 
 structure linear_ordered_semiring [class] (A : Type)
-  extends ordered_semiring A, linear_strong_order_pair A
+  extends ordered_semiring A, linear_strong_order_pair A :=
+(zero_lt_one : lt zero one)
 
 section
   variable [s : linear_ordered_semiring A]
   variables {a b c : A}
   include s
+
+  theorem zero_lt_one : 0 < (1:A) := linear_ordered_semiring.zero_lt_one A
 
   theorem lt_of_mul_lt_mul_left (H : c * a < c * b) (Hc : c ≥ 0) : a < b :=
   lt_of_not_ge
@@ -246,7 +249,7 @@ section
   include s
 
   theorem mul_le_mul_of_nonpos_left (H : b ≤ a) (Hc : c ≤ 0) : c * a ≤ c * b :=
-  have Hc' : -c ≥ 0, from iff.mp' !neg_nonneg_iff_nonpos Hc,
+  have Hc' : -c ≥ 0, from iff.mpr !neg_nonneg_iff_nonpos Hc,
   assert H1 : -c * b ≤ -c * a, from mul_le_mul_of_nonneg_left H Hc',
   have H2 : -(c * b) ≤ -(c * a),
     begin
@@ -256,7 +259,7 @@ section
   iff.mp !neg_le_neg_iff_le H2
 
   theorem mul_le_mul_of_nonpos_right (H : b ≤ a) (Hc : c ≤ 0) : a * c ≤ b * c :=
-  have Hc' : -c ≥ 0, from iff.mp' !neg_nonneg_iff_nonpos Hc,
+  have Hc' : -c ≥ 0, from iff.mpr !neg_nonneg_iff_nonpos Hc,
   assert H1 : b * -c ≤ a * -c, from mul_le_mul_of_nonneg_right H Hc',
   have H2 : -(b * c) ≤ -(a * c),
     begin
@@ -273,7 +276,7 @@ section
   end
 
   theorem mul_lt_mul_of_neg_left (H : b < a) (Hc : c < 0) : c * a < c * b :=
-  have Hc' : -c > 0, from iff.mp' !neg_pos_iff_neg Hc,
+  have Hc' : -c > 0, from iff.mpr !neg_pos_iff_neg Hc,
   assert H1 : -c * b < -c * a, from mul_lt_mul_of_pos_left H Hc',
   have H2 : -(c * b) < -(c * a),
     begin
@@ -283,7 +286,7 @@ section
   iff.mp !neg_lt_neg_iff_lt H2
 
   theorem mul_lt_mul_of_neg_right (H : b < a) (Hc : c < 0) : a * c < b * c :=
-  have Hc' : -c > 0, from iff.mp' !neg_pos_iff_neg Hc,
+  have Hc' : -c > 0, from iff.mpr !neg_pos_iff_neg Hc,
   assert H1 : b * -c < a * -c, from mul_lt_mul_of_pos_right H Hc',
   have H2 : -(b * c) < -(a * c),
     begin
@@ -378,7 +381,6 @@ section
     (assume H : a ≤ 0, mul_nonneg_of_nonpos_of_nonpos H H)
 
   theorem zero_le_one : 0 ≤ (1:A) := one_mul 1 ▸ mul_self_nonneg 1
-  theorem zero_lt_one : 0 < (1:A) := linear_ordered_ring.zero_lt_one A
 
   theorem pos_and_pos_or_neg_and_neg_of_mul_pos {a b : A} (Hab : a * b > 0) :
     (a > 0 ∧ b > 0) ∨ (a < 0 ∧ b < 0) :=
@@ -411,7 +413,7 @@ section
 
   theorem gt_of_mul_lt_mul_neg_left {a b c : A} (H : c * a < c * b) (Hc : c ≤ 0) : a > b :=
     have nhc : -c ≥ 0, from neg_nonneg_of_nonpos Hc,
-    have H2 : -(c * b) < -(c * a), from iff.mp' (neg_lt_neg_iff_lt _ _) H,
+    have H2 : -(c * b) < -(c * a), from iff.mpr (neg_lt_neg_iff_lt _ _) H,
     have H3 : (-c) * b < (-c) * a, from calc
       (-c) * b = - (c * b)    : neg_mul_eq_neg_mul
            ... < -(c * a)     : H2

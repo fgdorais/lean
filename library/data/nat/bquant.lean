@@ -14,31 +14,52 @@ without assuming classical axioms.
 
 More importantly, they can be reduced inside of the Lean kernel.
 -/
-import data.nat.order
+import data.subtype data.nat.order data.nat.div
 
 namespace nat
+  open subtype
+
   definition bex [reducible] (n : nat) (P : nat → Prop) : Prop :=
   ∃ x, x < n ∧ P x
 
+  definition bsub [reducible] (n : nat) (P : nat → Prop) : Type₁ :=
+  {x | x < n ∧ P x}
+
   definition ball [reducible] (n : nat) (P : nat → Prop) : Prop :=
   ∀ x, x < n → P x
+
+  lemma bex_of_bsub {n : nat} {P : nat → Prop} : bsub n P → bex n P :=
+  assume h, ex_of_sub h
 
   theorem not_bex_zero (P : nat → Prop) : ¬ bex 0 P :=
   λ H, obtain (w : nat) (Hw : w < 0 ∧ P w), from H,
     and.rec_on Hw (λ h₁ h₂, absurd h₁ (not_lt_zero w))
 
+  theorem not_bsub_zero (P : nat → Prop) : bsub 0 P → false :=
+  λ H, absurd (bex_of_bsub H) (not_bex_zero P)
+
+  definition bsub_succ {P : nat → Prop} {n : nat} (H : bsub n P) : bsub (succ n) P :=
+  obtain (w : nat) (Hw : w < n ∧ P w), from H,
+    and.rec_on Hw (λ hlt hp, tag w (and.intro (lt.step hlt) hp))
+
   theorem bex_succ {P : nat → Prop} {n : nat} (H : bex n P) : bex (succ n) P :=
   obtain (w : nat) (Hw : w < n ∧ P w), from H,
     and.rec_on Hw (λ hlt hp, exists.intro w (and.intro (lt.step hlt) hp))
 
+  definition bsub_succ_of_pred {P : nat → Prop} {a : nat} (H : P a) : bsub (succ a) P :=
+  tag a (and.intro (lt.base a) H)
+
   theorem bex_succ_of_pred {P : nat → Prop} {a : nat} (H : P a) : bex (succ a) P :=
-  exists.intro a (and.intro (lt.base a) H)
+  bex_of_bsub (bsub_succ_of_pred H)
 
   theorem not_bex_succ {P : nat → Prop} {n : nat} (H₁ : ¬ bex n P) (H₂ : ¬ P n) : ¬ bex (succ n) P :=
   λ H, obtain (w : nat) (Hw : w < succ n ∧ P w), from H,
     and.rec_on Hw (λ hltsn hp, or.rec_on (eq_or_lt_of_le (le_of_succ_le_succ hltsn))
       (λ heq : w = n, absurd (eq.rec_on heq hp) H₂)
       (λ hltn : w < n, absurd (exists.intro w (and.intro hltn hp)) H₁))
+
+  theorem not_bsub_succ {P : nat → Prop} {n : nat} (H₁ : ¬ bex n P) (H₂ : ¬ P n) : bsub (succ n) P → false :=
+  λ H, absurd (bex_of_bsub H) (not_bex_succ H₁ H₂)
 
   theorem ball_zero (P : nat → Prop) : ball zero P :=
   λ x Hlt, absurd Hlt !not_lt_zero
@@ -98,23 +119,26 @@ namespace nat
   variable [decP : decidable_pred P]
   include decP
 
-  theorem bex_not_of_not_ball : ∀ {n : nat}, ¬ ball n P → bex n (λ n, ¬ P n)
+  definition bsub_not_of_not_ball : ∀ {n : nat}, ¬ ball n P → {i | i < n ∧ ¬ P i}
   | 0        h := absurd (ball_zero P) h
   | (succ n) h := decidable.by_cases
     (λ hp : P n,
-      have h₁ : ¬ ball n P, from
+      have ¬ ball n P, from
         assume b : ball n P, absurd (ball_succ_of_ball b hp) h,
-      have h₂ : bex n (λ n, ¬ P n), from bex_not_of_not_ball h₁,
-      bex_succ h₂)
-    (λ hn : ¬ P n, bex_succ_of_pred hn)
+      have {i | i < n ∧ ¬ P i}, from bsub_not_of_not_ball this,
+      bsub_succ this)
+    (λ hn : ¬ P n, bsub_succ_of_pred hn)
+
+  theorem bex_not_of_not_ball {n : nat} (H : ¬ ball n P) : bex n (λ n, ¬ P n) :=
+  bex_of_bsub (bsub_not_of_not_ball H)
 
   theorem ball_not_of_not_bex : ∀ {n : nat}, ¬ bex n P → ball n (λ n, ¬ P n)
   | 0        h := ball_zero _
   | (succ n) h := by_cases
     (λ hp : P n, absurd (bex_succ_of_pred hp) h)
     (λ hn : ¬ P n,
-      have h₁ : ¬ bex n P, from
+      have ¬ bex n P, from
         assume b : bex n P, absurd (bex_succ b) h,
-      have h₂ : ball n (λ n, ¬ P n), from ball_not_of_not_bex h₁,
-      ball_succ_of_ball h₂ hn)
+      have ball n (λ n, ¬ P n), from ball_not_of_not_bex this,
+      ball_succ_of_ball this hn)
 end nat

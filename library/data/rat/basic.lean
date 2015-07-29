@@ -29,32 +29,32 @@ theorem equiv.refl [refl] (a : prerat) : a ≡ a := rfl
 theorem equiv.symm [symm] {a b : prerat} (H : a ≡ b) : b ≡ a := !eq.symm H
 
 theorem num_eq_zero_of_equiv {a b : prerat} (H : a ≡ b) (na_zero : num a = 0) : num b = 0 :=
-have H1 : num a * denom b = 0, from !zero_mul ▸ na_zero ▸ rfl,
-have H2 : num b * denom a = 0, from H ▸ H1,
-show num b = 0, from or_resolve_left (eq_zero_or_eq_zero_of_mul_eq_zero H2) (ne_of_gt (denom_pos a))
+have num a * denom b = 0, from !zero_mul ▸ na_zero ▸ rfl,
+have num b * denom a = 0, from H ▸ this,
+show num b = 0, from or_resolve_left (eq_zero_or_eq_zero_of_mul_eq_zero this) (ne_of_gt (denom_pos a))
 
 theorem num_pos_of_equiv {a b : prerat} (H : a ≡ b) (na_pos : num a > 0) : num b > 0 :=
-have H1 : num a * denom b > 0, from mul_pos na_pos (denom_pos b),
-have H2 : num b * denom a > 0, from H ▸ H1,
-show num b > 0, from pos_of_mul_pos_right H2 (le_of_lt (denom_pos a))
+have num a * denom b > 0, from mul_pos na_pos (denom_pos b),
+have num b * denom a > 0, from H ▸ this,
+show num b > 0, from pos_of_mul_pos_right this (le_of_lt (denom_pos a))
 
 theorem num_neg_of_equiv {a b : prerat} (H : a ≡ b) (na_neg : num a < 0) : num b < 0 :=
-have H1 : num a * denom b < 0, from mul_neg_of_neg_of_pos na_neg (denom_pos b),
-have H2 : -(-num b * denom a) < 0, from !neg_mul_eq_neg_mul⁻¹ ▸ !neg_neg⁻¹ ▸ H ▸ H1,
-have H3 : -num b > 0, from pos_of_mul_pos_right (pos_of_neg_neg H2) (le_of_lt (denom_pos a)),
-neg_of_neg_pos H3
+have num a * denom b < 0, from mul_neg_of_neg_of_pos na_neg (denom_pos b),
+have -(-num b * denom a) < 0, from !neg_mul_eq_neg_mul⁻¹ ▸ !neg_neg⁻¹ ▸ H ▸ this,
+have -num b > 0, from pos_of_mul_pos_right (pos_of_neg_neg this) (le_of_lt (denom_pos a)),
+neg_of_neg_pos this
 
 theorem equiv_of_num_eq_zero {a b : prerat} (H1 : num a = 0) (H2 : num b = 0) : a ≡ b :=
 by rewrite [↑equiv, H1, H2, *zero_mul]
 
 theorem equiv.trans [trans] {a b c : prerat} (H1 : a ≡ b) (H2 : b ≡ c) : a ≡ c :=
 decidable.by_cases
-  (assume b0 : num b = 0,
-    have a0 : num a = 0, from num_eq_zero_of_equiv (equiv.symm H1) b0,
-    have c0 : num c = 0, from num_eq_zero_of_equiv H2 b0,
-    equiv_of_num_eq_zero a0 c0)
-  (assume bn0 : num b ≠ 0,
-    have H3 : num b * denom b ≠ 0, from mul_ne_zero bn0 (ne_of_gt (denom_pos b)),
+  (suppose num b = 0,
+    have num a = 0, from num_eq_zero_of_equiv (equiv.symm H1) `num b = 0`,
+    have num c = 0, from num_eq_zero_of_equiv H2 `num b = 0`,
+    equiv_of_num_eq_zero `num a = 0` `num c = 0`)
+  (suppose num b ≠ 0,
+    have H3 : num b * denom b ≠ 0, from mul_ne_zero this (ne_of_gt (denom_pos b)),
     have H4 : (num b * denom b) * (num a * denom c) = (num b * denom b) * (num c * denom a),
       from calc
         (num b * denom b) * (num a * denom c) = (num a * denom b) * (num b * denom c) :
@@ -92,6 +92,9 @@ prerat.mk (num a * num b) (denom a * denom b) (mul_denom_pos a b)
 definition neg (a : prerat) : prerat :=
 prerat.mk (- num a) (denom a) (denom_pos a)
 
+definition smul (a : ℤ) (b : prerat) (H : a > 0) : prerat :=
+prerat.mk (a * num b) (a * denom b) (mul_pos H (denom_pos b))
+
 theorem of_int_add (a b : ℤ) : of_int (#int a + b) ≡ add (of_int a) (of_int b) :=
 by esimp [equiv, num, denom, one, add, of_int]; rewrite [*int.mul_one]
 
@@ -122,17 +125,17 @@ theorem inv_zero' : inv zero = zero := inv_zero (of_nat_succ_pos nat.zero)
 
 theorem inv_of_pos {n d : int} (np : n > 0) (dp : d > 0) : inv (mk n d dp) ≡ mk d n np :=
 obtain (n' : nat) (Hn' : n = of_nat n'), from exists_eq_of_nat (le_of_lt np),
-have H1 : (#nat n' > nat.zero), from lt_of_of_nat_lt_of_nat (Hn' ▸ np),
-obtain (k : nat) (Hk : n' = nat.succ k), from nat.exists_eq_succ_of_lt H1,
-have H2 : d * n = d * nat.succ k, by rewrite [Hn', Hk],
-Hn'⁻¹ ▸ (Hk⁻¹ ▸ H2)
+have (#nat n' > nat.zero), from lt_of_of_nat_lt_of_nat (Hn' ▸ np),
+obtain (k : nat) (Hk : n' = nat.succ k), from nat.exists_eq_succ_of_lt this,
+have d * n = d * nat.succ k, by rewrite [Hn', Hk],
+Hn'⁻¹ ▸ (Hk⁻¹ ▸ this)
 
 theorem inv_neg {n d : int} (np : n > 0) (dp : d > 0) : inv (mk (-n) d dp) ≡ mk (-d) n np :=
 obtain (n' : nat) (Hn' : n = of_nat n'), from exists_eq_of_nat (le_of_lt np),
-have H1 : (#nat n' > nat.zero), from lt_of_of_nat_lt_of_nat (Hn' ▸ np),
-obtain (k : nat) (Hk : n' = nat.succ k), from nat.exists_eq_succ_of_lt H1,
-have H2 : -d * n = -d * nat.succ k, by rewrite [Hn', Hk],
-have H3 : inv (mk -[1+k] d dp) ≡ mk (-d) n np, from H2,
+have (#nat n' > nat.zero), from lt_of_of_nat_lt_of_nat (Hn' ▸ np),
+obtain (k : nat) (Hk : n' = nat.succ k), from nat.exists_eq_succ_of_lt this,
+have -d * n = -d * nat.succ k, by rewrite [Hn', Hk],
+have H3 : inv (mk -[1+k] d dp) ≡ mk (-d) n np, from this,
 have H4 : -[1+k] = -n, from calc
   -[1+k] = -(nat.succ k) : rfl
       ... = -n            : by rewrite [Hk⁻¹, Hn'],
@@ -140,9 +143,9 @@ H4 ▸ H3
 
 theorem inv_of_neg {n d : int} (nn : n < 0) (dp : d > 0) :
   inv (mk n d dp) ≡ mk (-d) (-n) (neg_pos_of_neg nn) :=
-have H : inv (mk (-(-n)) d dp) ≡ mk (-d) (-n) (neg_pos_of_neg nn),
+have inv (mk (-(-n)) d dp) ≡ mk (-d) (-n) (neg_pos_of_neg nn),
   from inv_neg (neg_pos_of_neg nn) dp,
-!neg_neg ▸ H
+!neg_neg ▸ this
 
 /- operations respect equiv -/
 
@@ -199,6 +202,9 @@ theorem inv_equiv_inv : ∀{a b : prerat}, a ≡ b → inv a ≡ inv b
                                 by rewrite [↑equiv at *, ▸*, mul.comm ad, mul.comm bd, H]
                        ... ≡ inv (mk bn bd bdp) : (inv_of_pos bn_pos bdp)⁻¹)
 
+theorem smul_equiv {a : ℤ} {b : prerat} (H : a > 0) : smul a b H ≡ b :=
+by esimp[equiv, smul]; rewrite[mul.assoc, mul.left_comm]
+
 /- properties -/
 
 theorem add.comm (a b : prerat) : add a b ≡ add b a :=
@@ -223,12 +229,18 @@ by rewrite [↑mul, ↑equiv, *mul.assoc]
 theorem mul_one (a : prerat) : mul a one ≡ a :=
 by rewrite [↑mul, ↑one, ↑of_int, ↑equiv, ▸*, *mul_one]
 
--- with the simplifier this will be easy
 theorem mul.left_distrib (a b c : prerat) : mul a (add b c) ≡ add (mul a b) (mul a c) :=
-begin
-  rewrite [↑mul, ↑add, ↑equiv, ▸*, *mul.left_distrib, *mul.right_distrib, -*int.mul.assoc],
-  apply sorry
-end
+have H : smul (denom a) (mul a (add b c)) (denom_pos a) =
+   add (mul a b) (mul a c), from begin
+  rewrite[↑smul, ↑mul, ↑add],
+  congruence,
+  rewrite[*mul.left_distrib, *mul.right_distrib, -*int.mul.assoc],
+  have T : ∀ {x y z w : ℤ}, x*y*z*w=y*z*x*w, from
+    λx y z w, (!int.mul.assoc ⬝ !int.mul.comm) ▸ rfl,
+  exact !congr_arg2 T T,
+  exact !mul.left_comm ▸ !int.mul.assoc⁻¹
+end,
+equiv.symm (H ▸ smul_equiv (denom_pos a))
 
 theorem mul_inv_cancel : ∀{a : prerat}, ¬ a ≡ zero → mul a (inv a) ≡ one
 | (mk an ad adp) :=
@@ -511,7 +523,7 @@ end migrate_algebra
 
 theorem eq_num_div_denom (a : ℚ) : a = num a / denom a :=
 have H : of_int (denom a) ≠ 0, from assume H', ne_of_gt (denom_pos a) (of_int.inj H'),
-iff.mp' (eq_div_iff_mul_eq H) (mul_denom a)
+iff.mpr (eq_div_iff_mul_eq H) (mul_denom a)
 
 theorem of_nat_div {a b : ℤ} (H : b ∣ a) : of_int (a div b) = of_int a / of_int b :=
 decidable.by_cases
@@ -523,7 +535,7 @@ decidable.by_cases
       int.dvd.elim H
         (take c, assume Hc : a = b * c,
           by rewrite [Hc, !int.mul_div_cancel_left bnz, mul.comm]),
-    iff.mp' (eq_div_iff_mul_eq bnz') H')
+    iff.mpr (eq_div_iff_mul_eq bnz') H')
 
 
 end rat

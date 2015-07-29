@@ -6,9 +6,7 @@ Authors: Floris van Doorn, Jeremy Avigad
 Subtraction on the natural numbers, as well as min, max, and distance.
 -/
 import .order
-import tools.fake_simplifier
 open eq.ops
-open fake_simplifier
 
 namespace nat
 
@@ -355,6 +353,14 @@ lt_of_succ_le (le_sub_of_add_le (calc
     succ m + k = succ (m + k) : succ_add_eq_succ_add
            ... ≤ n            : succ_le_of_lt H))
 
+theorem sub_lt_of_lt_add {v n m : nat} (h₁ : v < n + m) (h₂ : n ≤ v) : v - n < m :=
+have succ v ≤ n + m,   from succ_le_of_lt h₁,
+have succ (v - n) ≤ m, from
+  calc succ (v - n) = succ v - n : succ_sub h₂
+        ...     ≤ n + m - n      : sub_le_sub_right this n
+        ...     = m              : add_sub_cancel_left,
+lt_of_succ_le this
+
 /- distance -/
 
 definition dist [reducible] (n m : ℕ) := (n - m) + (m - n)
@@ -429,22 +435,21 @@ theorem dist_sub_eq_dist_add_right {k m : ℕ} (H : k ≥ m) (n : ℕ) :
 (dist_sub_eq_dist_add_left H n ▸ !dist.comm) ▸ !dist.comm
 
 theorem dist.triangle_inequality (n m k : ℕ) : dist n k ≤ dist n m + dist m k :=
-have H : (n - m) + (m - k) + ((k - m) + (m - n)) = (n - m) + (m - n) + ((m - k) + (k - m)),
-  by simp,
-H ▸ add_le_add !sub_lt_sub_add_sub !sub_lt_sub_add_sub
+have (n - m) + (m - k) + ((k - m) + (m - n)) = (n - m) + (m - n) + ((m - k) + (k - m)),
+from (!add.comm ▸ !add.left_comm ▸ !add.assoc) ⬝ !add.assoc⁻¹,
+this ▸ add_le_add !sub_lt_sub_add_sub !sub_lt_sub_add_sub
 
 theorem dist_add_add_le_add_dist_dist (n m k l : ℕ) : dist (n + m) (k + l) ≤ dist n k + dist m l :=
 have H : dist (n + m) (k + m) + dist (k + m) (k + l) = dist n k + dist m l, from
   !dist_add_add_left ▸ !dist_add_add_right ▸ rfl,
 H ▸ !dist.triangle_inequality
 
-theorem dist_mul_left (k n m : ℕ) : dist (k * n) (k * m) = k * dist n m :=
-have H : ∀n m, dist n m = n - m + (m - n), from take n m, rfl,
-by simp
-
 theorem dist_mul_right (n k m : ℕ) : dist (n * k) (m * k) = dist n m * k :=
-have H : ∀n m, dist n m = n - m + (m - n), from take n m, rfl,
-by simp
+assert ∀ n m, dist n m = n - m + (m - n), from take n m, rfl,
+by rewrite [this, this n m, mul.right_distrib, *mul_sub_right_distrib]
+
+theorem dist_mul_left (k n m : ℕ) : dist (k * n) (k * m) = k * dist n m :=
+!mul.comm ▸ !mul.comm ▸ !dist_mul_right ⬝ !mul.comm
 
 theorem dist_mul_dist (n m k l : ℕ) : dist n m * dist k l = dist (n * k + m * l) (n * l + m * k) :=
 have aux : ∀k l, k ≥ l → dist n m * dist k l = dist (n * k + m * l) (n * l + m * k), from
@@ -455,7 +460,7 @@ have aux : ∀k l, k ≥ l → dist n m * dist k l = dist (n * k + m * l) (n * l
   calc
     dist n m * dist k l = dist n m * (k - l)       : dist_eq_sub_of_ge H
       ... = dist (n * (k - l)) (m * (k - l))       : dist_mul_right
-      ... = dist (n * k - n * l) (m * k - m * l)   : by simp
+      ... = dist (n * k - n * l) (m * k - m * l)   : by rewrite [*mul_sub_left_distrib]
       ... = dist (n * k) (m * k - m * l + n * l)   : dist_sub_eq_dist_add_left (!mul_le_mul_left H)
       ... = dist (n * k) (n * l + (m * k - m * l)) : add.comm
       ... = dist (n * k) (n * l + m * k - m * l)   : add_sub_assoc H2 (n * l)

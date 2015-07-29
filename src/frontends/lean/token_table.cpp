@@ -88,14 +88,14 @@ static char const * g_decreasing_unicode = "↓";
 
 void init_token_table(token_table & t) {
     pair<char const *, unsigned> builtin[] =
-        {{"fun", 0}, {"Pi", 0}, {"let", 0}, {"in", 0}, {"at", 0}, {"have", 0}, {"assert", 0}, {"show", 0}, {"obtain", 0},
+        {{"fun", 0}, {"Pi", 0}, {"let", 0}, {"in", 0}, {"at", 0}, {"have", 0}, {"assert", 0}, {"suppose", 0}, {"show", 0}, {"obtain", 0},
          {"if", 0}, {"then", 0}, {"else", 0}, {"by", 0}, {"by+", 0}, {"hiding", 0}, {"replacing", 0}, {"renaming", 0},
          {"from", 0}, {"(", g_max_prec}, {")", 0}, {"{", g_max_prec}, {"}", 0}, {"_", g_max_prec},
          {"[", g_max_prec}, {"]", 0}, {"⦃", g_max_prec}, {"⦄", 0}, {".{", 0}, {"Type", g_max_prec},
          {"{|", g_max_prec}, {"|}", 0}, {"⊢", 0}, {"⟨", g_max_prec}, {"⟩", 0}, {"^", 0}, {"↑", 0}, {"▸", 0},
          {"using", 0}, {"|", 0}, {"!", g_max_prec}, {"?", 0},  {"with", 0}, {"...", 0}, {",", 0},
          {".", 0}, {":", 0}, {"::", 0}, {"calc", 0}, {"rewrite", 0}, {"xrewrite", 0}, {"krewrite", 0},
-         {"esimp", 0}, {"fold", 0}, {"unfold", 0},
+         {"esimp", 0}, {"fold", 0}, {"unfold", 0}, {"with_options", 0}, {"simp", 0},
          {"generalize", 0}, {"as", 0}, {":=", 0}, {"--", 0}, {"#", 0},
          {"(*", 0}, {"/-", 0}, {"begin", g_max_prec}, {"begin+", g_max_prec}, {"abstract", g_max_prec},
          {"proof", g_max_prec}, {"qed", 0}, {"@", g_max_prec},
@@ -105,12 +105,12 @@ void init_token_table(token_table & t) {
 
     char const * commands[] =
         {"theorem", "axiom", "axioms", "variable", "protected", "private", "reveal",
-         "definition", "example", "coercion", "abbreviation",
+         "definition", "example", "coercion", "abbreviation", "noncomputable",
          "variables", "parameter", "parameters", "constant", "constants", "[persistent]", "[visible]", "[instance]", "[trans-instance]",
          "[none]", "[class]", "[coercion]", "[reducible]", "[irreducible]", "[semireducible]", "[quasireducible]",
-         "[rewrite]", "[parsing-only]", "[multiple-instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor",
-         "evaluate", "check", "eval", "[wf]", "[whnf]", "[priority", "[unfold-f]",
-         "[constructor]", "[unfold-c", "print",
+         "[simp]", "[congr]", "[parsing-only]", "[multiple-instances]", "[symm]", "[trans]", "[refl]", "[subst]", "[recursor",
+         "evaluate", "check", "eval", "[wf]", "[whnf]", "[priority", "[unfold-full]", "[unfold-hints]",
+         "[constructor]", "[unfold", "print",
          "end", "namespace", "section", "prelude", "help",
          "import", "inductive", "record", "structure", "module", "universe", "universes", "local",
          "precedence", "reserve", "infixl", "infixr", "infix", "postfix", "prefix", "notation",

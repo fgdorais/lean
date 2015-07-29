@@ -47,6 +47,7 @@ static name const * g_show_tk = nullptr;
 static name const * g_have_tk = nullptr;
 static name const * g_assert_tk = nullptr;
 static name const * g_assume_tk = nullptr;
+static name const * g_suppose_tk = nullptr;
 static name const * g_take_tk = nullptr;
 static name const * g_fun_tk = nullptr;
 static name const * g_match_tk = nullptr;
@@ -87,6 +88,7 @@ static name const * g_begin_tk = nullptr;
 static name const * g_begin_plus_tk = nullptr;
 static name const * g_end_tk = nullptr;
 static name const * g_private_tk = nullptr;
+static name const * g_protected_tk = nullptr;
 static name const * g_definition_tk = nullptr;
 static name const * g_theorem_tk = nullptr;
 static name const * g_abbreviation_tk = nullptr;
@@ -99,8 +101,10 @@ static name const * g_variables_tk = nullptr;
 static name const * g_instance_tk = nullptr;
 static name const * g_trans_inst_tk = nullptr;
 static name const * g_priority_tk = nullptr;
-static name const * g_unfold_c_tk = nullptr;
-static name const * g_unfold_f_tk = nullptr;
+static name const * g_unfold_tk = nullptr;
+static name const * g_unfold_full_tk = nullptr;
+static name const * g_unfold_hints_bracket_tk = nullptr;
+static name const * g_unfold_hints_tk = nullptr;
 static name const * g_constructor_tk = nullptr;
 static name const * g_coercion_tk = nullptr;
 static name const * g_reducible_tk = nullptr;
@@ -112,7 +116,8 @@ static name const * g_symm_tk = nullptr;
 static name const * g_trans_tk = nullptr;
 static name const * g_refl_tk = nullptr;
 static name const * g_subst_tk = nullptr;
-static name const * g_rewrite_attr_tk = nullptr;
+static name const * g_simp_attr_tk = nullptr;
+static name const * g_congr_attr_tk = nullptr;
 static name const * g_recursor_tk = nullptr;
 static name const * g_attribute_tk = nullptr;
 static name const * g_with_tk = nullptr;
@@ -124,12 +129,19 @@ static name const * g_foldr_tk = nullptr;
 static name const * g_foldl_tk = nullptr;
 static name const * g_binder_tk = nullptr;
 static name const * g_binders_tk = nullptr;
+static name const * g_precedence_tk = nullptr;
 static name const * g_infix_tk = nullptr;
 static name const * g_infixl_tk = nullptr;
 static name const * g_infixr_tk = nullptr;
 static name const * g_postfix_tk = nullptr;
 static name const * g_prefix_tk = nullptr;
 static name const * g_notation_tk = nullptr;
+static name const * g_tactic_infix_tk = nullptr;
+static name const * g_tactic_infixl_tk = nullptr;
+static name const * g_tactic_infixr_tk = nullptr;
+static name const * g_tactic_postfix_tk = nullptr;
+static name const * g_tactic_prefix_tk = nullptr;
+static name const * g_tactic_notation_tk = nullptr;
 static name const * g_call_tk = nullptr;
 static name const * g_calc_tk = nullptr;
 static name const * g_obtain_tk = nullptr;
@@ -139,6 +151,8 @@ static name const * g_fields_tk = nullptr;
 static name const * g_trust_tk = nullptr;
 static name const * g_metaclasses_tk = nullptr;
 static name const * g_inductive_tk = nullptr;
+static name const * g_this_tk = nullptr;
+static name const * g_noncomputable_tk = nullptr;
 void initialize_tokens() {
     g_period_tk = new name{"."};
     g_placeholder_tk = new name{"_"};
@@ -184,6 +198,7 @@ void initialize_tokens() {
     g_have_tk = new name{"have"};
     g_assert_tk = new name{"assert"};
     g_assume_tk = new name{"assume"};
+    g_suppose_tk = new name{"suppose"};
     g_take_tk = new name{"take"};
     g_fun_tk = new name{"fun"};
     g_match_tk = new name{"match"};
@@ -224,6 +239,7 @@ void initialize_tokens() {
     g_begin_plus_tk = new name{"begin+"};
     g_end_tk = new name{"end"};
     g_private_tk = new name{"private"};
+    g_protected_tk = new name{"protected"};
     g_definition_tk = new name{"definition"};
     g_theorem_tk = new name{"theorem"};
     g_abbreviation_tk = new name{"abbreviation"};
@@ -236,8 +252,10 @@ void initialize_tokens() {
     g_instance_tk = new name{"[instance]"};
     g_trans_inst_tk = new name{"[trans-instance]"};
     g_priority_tk = new name{"[priority"};
-    g_unfold_c_tk = new name{"[unfold-c"};
-    g_unfold_f_tk = new name{"[unfold-f]"};
+    g_unfold_tk = new name{"[unfold"};
+    g_unfold_full_tk = new name{"[unfold-full]"};
+    g_unfold_hints_bracket_tk = new name{"[unfold-hints]"};
+    g_unfold_hints_tk = new name{"unfold-hints"};
     g_constructor_tk = new name{"[constructor]"};
     g_coercion_tk = new name{"[coercion]"};
     g_reducible_tk = new name{"[reducible]"};
@@ -249,7 +267,8 @@ void initialize_tokens() {
     g_trans_tk = new name{"[trans]"};
     g_refl_tk = new name{"[refl]"};
     g_subst_tk = new name{"[subst]"};
-    g_rewrite_attr_tk = new name{"[rewrite]"};
+    g_simp_attr_tk = new name{"[simp]"};
+    g_congr_attr_tk = new name{"[congr]"};
     g_recursor_tk = new name{"[recursor"};
     g_attribute_tk = new name{"attribute"};
     g_with_tk = new name{"with"};
@@ -261,12 +280,19 @@ void initialize_tokens() {
     g_foldl_tk = new name{"foldl"};
     g_binder_tk = new name{"binder"};
     g_binders_tk = new name{"binders"};
+    g_precedence_tk = new name{"precedence"};
     g_infix_tk = new name{"infix"};
     g_infixl_tk = new name{"infixl"};
     g_infixr_tk = new name{"infixr"};
     g_postfix_tk = new name{"postfix"};
     g_prefix_tk = new name{"prefix"};
     g_notation_tk = new name{"notation"};
+    g_tactic_infix_tk = new name{"tactic_infix"};
+    g_tactic_infixl_tk = new name{"tactic_infixl"};
+    g_tactic_infixr_tk = new name{"tactic_infixr"};
+    g_tactic_postfix_tk = new name{"tactic_postfix"};
+    g_tactic_prefix_tk = new name{"tactic_prefix"};
+    g_tactic_notation_tk = new name{"tactic_notation"};
     g_call_tk = new name{"call"};
     g_calc_tk = new name{"calc"};
     g_obtain_tk = new name{"obtain"};
@@ -276,6 +302,8 @@ void initialize_tokens() {
     g_trust_tk = new name{"trust"};
     g_metaclasses_tk = new name{"metaclasses"};
     g_inductive_tk = new name{"inductive"};
+    g_this_tk = new name{"this"};
+    g_noncomputable_tk = new name{"noncomputable"};
 }
 void finalize_tokens() {
     delete g_period_tk;
@@ -322,6 +350,7 @@ void finalize_tokens() {
     delete g_have_tk;
     delete g_assert_tk;
     delete g_assume_tk;
+    delete g_suppose_tk;
     delete g_take_tk;
     delete g_fun_tk;
     delete g_match_tk;
@@ -362,6 +391,7 @@ void finalize_tokens() {
     delete g_begin_plus_tk;
     delete g_end_tk;
     delete g_private_tk;
+    delete g_protected_tk;
     delete g_definition_tk;
     delete g_theorem_tk;
     delete g_abbreviation_tk;
@@ -374,8 +404,10 @@ void finalize_tokens() {
     delete g_instance_tk;
     delete g_trans_inst_tk;
     delete g_priority_tk;
-    delete g_unfold_c_tk;
-    delete g_unfold_f_tk;
+    delete g_unfold_tk;
+    delete g_unfold_full_tk;
+    delete g_unfold_hints_bracket_tk;
+    delete g_unfold_hints_tk;
     delete g_constructor_tk;
     delete g_coercion_tk;
     delete g_reducible_tk;
@@ -387,7 +419,8 @@ void finalize_tokens() {
     delete g_trans_tk;
     delete g_refl_tk;
     delete g_subst_tk;
-    delete g_rewrite_attr_tk;
+    delete g_simp_attr_tk;
+    delete g_congr_attr_tk;
     delete g_recursor_tk;
     delete g_attribute_tk;
     delete g_with_tk;
@@ -399,12 +432,19 @@ void finalize_tokens() {
     delete g_foldl_tk;
     delete g_binder_tk;
     delete g_binders_tk;
+    delete g_precedence_tk;
     delete g_infix_tk;
     delete g_infixl_tk;
     delete g_infixr_tk;
     delete g_postfix_tk;
     delete g_prefix_tk;
     delete g_notation_tk;
+    delete g_tactic_infix_tk;
+    delete g_tactic_infixl_tk;
+    delete g_tactic_infixr_tk;
+    delete g_tactic_postfix_tk;
+    delete g_tactic_prefix_tk;
+    delete g_tactic_notation_tk;
     delete g_call_tk;
     delete g_calc_tk;
     delete g_obtain_tk;
@@ -414,6 +454,8 @@ void finalize_tokens() {
     delete g_trust_tk;
     delete g_metaclasses_tk;
     delete g_inductive_tk;
+    delete g_this_tk;
+    delete g_noncomputable_tk;
 }
 name const & get_period_tk() { return *g_period_tk; }
 name const & get_placeholder_tk() { return *g_placeholder_tk; }
@@ -459,6 +501,7 @@ name const & get_show_tk() { return *g_show_tk; }
 name const & get_have_tk() { return *g_have_tk; }
 name const & get_assert_tk() { return *g_assert_tk; }
 name const & get_assume_tk() { return *g_assume_tk; }
+name const & get_suppose_tk() { return *g_suppose_tk; }
 name const & get_take_tk() { return *g_take_tk; }
 name const & get_fun_tk() { return *g_fun_tk; }
 name const & get_match_tk() { return *g_match_tk; }
@@ -499,6 +542,7 @@ name const & get_begin_tk() { return *g_begin_tk; }
 name const & get_begin_plus_tk() { return *g_begin_plus_tk; }
 name const & get_end_tk() { return *g_end_tk; }
 name const & get_private_tk() { return *g_private_tk; }
+name const & get_protected_tk() { return *g_protected_tk; }
 name const & get_definition_tk() { return *g_definition_tk; }
 name const & get_theorem_tk() { return *g_theorem_tk; }
 name const & get_abbreviation_tk() { return *g_abbreviation_tk; }
@@ -511,8 +555,10 @@ name const & get_variables_tk() { return *g_variables_tk; }
 name const & get_instance_tk() { return *g_instance_tk; }
 name const & get_trans_inst_tk() { return *g_trans_inst_tk; }
 name const & get_priority_tk() { return *g_priority_tk; }
-name const & get_unfold_c_tk() { return *g_unfold_c_tk; }
-name const & get_unfold_f_tk() { return *g_unfold_f_tk; }
+name const & get_unfold_tk() { return *g_unfold_tk; }
+name const & get_unfold_full_tk() { return *g_unfold_full_tk; }
+name const & get_unfold_hints_bracket_tk() { return *g_unfold_hints_bracket_tk; }
+name const & get_unfold_hints_tk() { return *g_unfold_hints_tk; }
 name const & get_constructor_tk() { return *g_constructor_tk; }
 name const & get_coercion_tk() { return *g_coercion_tk; }
 name const & get_reducible_tk() { return *g_reducible_tk; }
@@ -524,7 +570,8 @@ name const & get_symm_tk() { return *g_symm_tk; }
 name const & get_trans_tk() { return *g_trans_tk; }
 name const & get_refl_tk() { return *g_refl_tk; }
 name const & get_subst_tk() { return *g_subst_tk; }
-name const & get_rewrite_attr_tk() { return *g_rewrite_attr_tk; }
+name const & get_simp_attr_tk() { return *g_simp_attr_tk; }
+name const & get_congr_attr_tk() { return *g_congr_attr_tk; }
 name const & get_recursor_tk() { return *g_recursor_tk; }
 name const & get_attribute_tk() { return *g_attribute_tk; }
 name const & get_with_tk() { return *g_with_tk; }
@@ -536,12 +583,19 @@ name const & get_foldr_tk() { return *g_foldr_tk; }
 name const & get_foldl_tk() { return *g_foldl_tk; }
 name const & get_binder_tk() { return *g_binder_tk; }
 name const & get_binders_tk() { return *g_binders_tk; }
+name const & get_precedence_tk() { return *g_precedence_tk; }
 name const & get_infix_tk() { return *g_infix_tk; }
 name const & get_infixl_tk() { return *g_infixl_tk; }
 name const & get_infixr_tk() { return *g_infixr_tk; }
 name const & get_postfix_tk() { return *g_postfix_tk; }
 name const & get_prefix_tk() { return *g_prefix_tk; }
 name const & get_notation_tk() { return *g_notation_tk; }
+name const & get_tactic_infix_tk() { return *g_tactic_infix_tk; }
+name const & get_tactic_infixl_tk() { return *g_tactic_infixl_tk; }
+name const & get_tactic_infixr_tk() { return *g_tactic_infixr_tk; }
+name const & get_tactic_postfix_tk() { return *g_tactic_postfix_tk; }
+name const & get_tactic_prefix_tk() { return *g_tactic_prefix_tk; }
+name const & get_tactic_notation_tk() { return *g_tactic_notation_tk; }
 name const & get_call_tk() { return *g_call_tk; }
 name const & get_calc_tk() { return *g_calc_tk; }
 name const & get_obtain_tk() { return *g_obtain_tk; }
@@ -551,4 +605,6 @@ name const & get_fields_tk() { return *g_fields_tk; }
 name const & get_trust_tk() { return *g_trust_tk; }
 name const & get_metaclasses_tk() { return *g_metaclasses_tk; }
 name const & get_inductive_tk() { return *g_inductive_tk; }
+name const & get_this_tk() { return *g_this_tk; }
+name const & get_noncomputable_tk() { return *g_noncomputable_tk; }
 }

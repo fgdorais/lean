@@ -31,6 +31,7 @@ Author: Leonardo de Moura
 #include "library/module.h"
 #include "library/scoped_ext.h"
 #include "library/explicit.h"
+#include "library/typed_expr.h"
 #include "library/let.h"
 #include "library/num.h"
 #include "library/string.h"
@@ -49,6 +50,7 @@ Author: Leonardo de Moura
 #include "frontends/lean/parse_rewrite_tactic.h"
 #include "frontends/lean/update_environment_exception.h"
 #include "frontends/lean/local_ref_info.h"
+#include "frontends/lean/opt_cmd.h"
 
 #ifndef LEAN_DEFAULT_PARSER_SHOW_ERRORS
 #define LEAN_DEFAULT_PARSER_SHOW_ERRORS true
@@ -100,6 +102,17 @@ parser::undef_id_to_local_scope::undef_id_to_local_scope(parser & p):
 
 static name * g_tmp_prefix = nullptr;
 
+void parser::init_stop_at(options const & opts) {
+    unsigned col;
+    if (has_show_goal(opts, m_stop_at_line, col)) {
+        m_stop_at      = true;
+    } else if (has_show_hole(opts, m_stop_at_line, col)) {
+        m_stop_at      = true;
+    } else {
+        m_stop_at      = false;
+    }
+}
+
 parser::parser(environment const & env, io_state const & ios,
                std::istream & strm, char const * strm_name,
                bool use_exceptions, unsigned num_threads,
@@ -111,7 +124,9 @@ parser::parser(environment const & env, io_state const & ios,
     m_theorem_queue(*this, num_threads > 1 ? num_threads - 1 : 0),
     m_snapshot_vector(sv), m_info_manager(im), m_cache(nullptr), m_index(nullptr) {
     m_local_decls_size_at_beg_cmd = 0;
-    m_profile    = ios.get_options().get_bool("profile", false);
+    m_in_backtick = false;
+    m_profile     = ios.get_options().get_bool("profile", false);
+    init_stop_at(ios.get_options());
     if (num_threads > 1 && m_profile)
         throw exception("option --profile cannot be used when theorems are compiled in parallel");
     m_has_params = false;
@@ -175,11 +190,16 @@ void parser::add_abbrev_index(name const & a, name const & d) {
 }
 
 bool parser::are_info_lines_valid(unsigned start_line, unsigned end_line) const {
-    if (!m_info_manager)
-        return true; // we are not tracking info
-    for (unsigned i = start_line; i <= end_line; i++)
-        if (m_info_manager->is_invalidated(i))
+    if (m_stop_at) {
+        if (start_line <= m_stop_at_line && m_stop_at_line <= end_line)
             return false;
+    }
+    if (m_info_manager) {
+        // we are tracking info
+        for (unsigned i = start_line; i <= end_line; i++)
+            if (m_info_manager->is_invalidated(i))
+                return false;
+    }
     return true;
 }
 
@@ -343,6 +363,12 @@ expr parser::save_pos(expr e, pos_info p) {
     auto t = get_tag(e);
     if (!m_pos_table.contains(t))
         m_pos_table.insert(t, p);
+    return e;
+}
+
+expr parser::update_pos(expr e, pos_info p) {
+    auto t = get_tag(e);
+    m_pos_table.insert(t, p);
     return e;
 }
 
@@ -932,6 +958,13 @@ void parser::parse_binders_core(buffer<expr> & r, buffer<notation_entry> * nentr
         if (curr_is_identifier()) {
             parse_binder_block(r, binder_info(), rbp);
             last_block_delimited = false;
+        } else if (curr_is_backtick()) {
+            auto p    = pos();
+            name n    = mk_fresh_name();
+            expr type = parse_backtick_expr_core();
+            expr local = save_pos(mk_local(n, type, binder_info()), p);
+            add_local(local);
+            r.push_back(local);
         } else {
             optional<binder_info> bi = parse_optional_binder_info(simple_only);
             if (bi) {
@@ -961,6 +994,7 @@ local_environment parser::parse_binders(buffer<expr> & r, buffer<notation_entry>
 
 bool parser::parse_local_notation_decl(buffer<notation_entry> * nentries) {
     if (curr_is_notation_decl(*this)) {
+        parser::in_notation_ctx ctx(*this);
         buffer<token_entry> new_tokens;
         bool overload    = false;
         bool allow_local = true;
@@ -1327,6 +1361,25 @@ expr parser::parse_string_expr() {
     return from_string(v);
 }
 
+
+expr parser::parse_backtick_expr_core() {
+    next();
+    flet<bool> set(m_in_backtick, true);
+    expr type = parse_expr();
+    if (curr() != scanner::token_kind::Backtick) {
+        throw parser_error("invalid expression, '`' expected", pos());
+    }
+    next();
+    return type;
+}
+
+expr parser::parse_backtick_expr() {
+    auto p = pos();
+    expr type   = parse_backtick_expr_core();
+    expr assump = mk_by_plus(save_pos(mk_constant(get_tactic_assumption_name()), p), p);
+    return save_pos(mk_typed_expr(type, assump), p);
+}
+
 expr parser::parse_nud() {
     switch (curr()) {
     case scanner::token_kind::Keyword:     return parse_nud_notation();
@@ -1334,6 +1387,7 @@ expr parser::parse_nud() {
     case scanner::token_kind::Numeral:     return parse_numeral_expr();
     case scanner::token_kind::Decimal:     return parse_decimal_expr();
     case scanner::token_kind::String:      return parse_string_expr();
+    case scanner::token_kind::Backtick:    return parse_backtick_expr();
     default: throw parser_error("invalid expression, unexpected token", pos());
     }
 }
@@ -1355,6 +1409,8 @@ unsigned parser::curr_lbp_core(bool as_tactic) const {
     case scanner::token_kind::CommandKeyword: case scanner::token_kind::Eof:
     case scanner::token_kind::ScriptBlock:    case scanner::token_kind::QuotedSymbol:
         return 0;
+    case scanner::token_kind::Backtick:
+        return m_in_backtick ? 0 : get_max_prec();
     case scanner::token_kind::Identifier:     case scanner::token_kind::Numeral:
     case scanner::token_kind::Decimal:        case scanner::token_kind::String:
         return get_max_prec();
@@ -1636,9 +1692,16 @@ void parser::parse_command() {
     name const & cmd_name = get_token_info().value();
     m_cmd_token = get_token_info().token();
     if (auto it = cmds().find(cmd_name)) {
-        next();
-        m_local_decls_size_at_beg_cmd = m_local_decls.size();
-        m_env = it->get_fn()(*this);
+        if (is_notation_cmd(cmd_name)) {
+            in_notation_ctx ctx(*this);
+            next();
+            m_local_decls_size_at_beg_cmd = m_local_decls.size();
+            m_env = it->get_fn()(*this);
+        } else {
+            next();
+            m_local_decls_size_at_beg_cmd = m_local_decls.size();
+            m_env = it->get_fn()(*this);
+        }
     } else {
         auto p = pos();
         next();
@@ -1791,6 +1854,9 @@ bool parser::parse_commands() {
 #endif
         }
         while (!done) {
+            if (m_stop_at && pos().first > m_stop_at_line) {
+                throw interrupt_parser();
+            }
             protected_call([&]() {
                     check_interrupted();
                     switch (curr()) {

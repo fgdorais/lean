@@ -147,6 +147,10 @@ class parser {
     // auxiliary field used to record the size of m_local_decls before a command is executed.
     unsigned               m_local_decls_size_at_beg_cmd;
 
+    // stop at line/col
+    bool                   m_stop_at; // if true, then parser stops execution after the given line and column is reached
+    unsigned               m_stop_at_line;
+
     void display_warning_pos(unsigned line, unsigned pos);
     void display_error_pos(unsigned line, unsigned pos);
     void display_error_pos(pos_info p);
@@ -190,8 +194,6 @@ class parser {
     void parse_script(bool as_expr = false);
     bool parse_commands();
     unsigned curr_lbp_core(bool as_tactic) const;
-    unsigned curr_expr_lbp() const { return curr_lbp_core(false); }
-    unsigned curr_tactic_lbp() const { return curr_lbp_core(true); }
     expr parse_notation_core(parse_table t, expr * left, bool as_tactic);
     expr parse_expr_or_tactic(unsigned rbp, bool as_tactic) {
         return as_tactic ? parse_tactic(rbp) : parse_expr(rbp);
@@ -235,6 +237,10 @@ class parser {
     elaborator_context mk_elaborator_context(environment const & env, pos_info_provider const & pp);
     elaborator_context mk_elaborator_context(environment const & env, local_level_decls const & lls, pos_info_provider const & pp);
 
+    bool m_in_backtick; // true if parser `expr` notation
+    expr parse_backtick_expr_core();
+    expr parse_backtick_expr();
+
     optional<expr> is_tactic_command(name & id);
     expr parse_tactic_option_num();
     expr parse_tactic_led(expr left);
@@ -246,6 +252,8 @@ class parser {
     expr parse_tactic_opt_id_list();
     expr parse_tactic_using_expr();
 
+    void init_stop_at(options const & opts);
+
 public:
     parser(environment const & env, io_state const & ios,
            std::istream & strm, char const * str_name,
@@ -253,6 +261,9 @@ public:
            snapshot const * s = nullptr, snapshot_vector * sv = nullptr,
            info_manager * im = nullptr, keep_theorem_mode tmode = keep_theorem_mode::All);
     ~parser();
+
+    unsigned curr_expr_lbp() const { return curr_lbp_core(false); }
+    unsigned curr_tactic_lbp() const { return curr_lbp_core(true); }
 
     cmd_table const & cmds() const { return get_cmd_table(env()); }
 
@@ -295,6 +306,7 @@ public:
     pos_info pos() const { return pos_info(m_scanner.get_line(), m_scanner.get_pos()); }
     expr save_pos(expr e, pos_info p);
     expr rec_save_pos(expr const & e, pos_info p);
+    expr update_pos(expr e, pos_info p);
     pos_info pos_of(expr const & e, pos_info default_pos) const;
     pos_info pos_of(expr const & e) const { return pos_of(e, pos()); }
     pos_info cmd_pos() const { return m_last_cmd_pos; }
@@ -334,6 +346,8 @@ public:
     bool curr_is_token_or_id(name const & tk) const;
     /** \brief Return true iff the current token is a command, EOF, period or script block */
     bool curr_is_command_like() const;
+    /** \brief Return true iff the current token is a backtick ` */
+    bool curr_is_backtick() const { return curr() == scanner::token_kind::Backtick; }
     /** \brief Read the next token if the current one is not End-of-file. */
     void next() { if (m_curr != scanner::token_kind::Eof) scan(); }
     /** \brief Return true iff the current token is a keyword (or command keyword) named \c tk */
@@ -510,6 +524,12 @@ public:
 
     /** parse all commands in the input stream */
     bool operator()() { return parse_commands(); }
+
+    class in_notation_ctx {
+        scanner::in_notation_ctx m_ctx;
+    public:
+        in_notation_ctx(parser & p):m_ctx(p.m_scanner) {}
+    };
 };
 
 bool parse_commands(environment & env, io_state & ios, std::istream & in, char const * strm_name,

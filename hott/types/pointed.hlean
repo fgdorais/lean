@@ -22,7 +22,7 @@ namespace pointed
   attribute Pointed.carrier [coercion]
   variables {A B : Type}
 
-  definition pt [unfold-c 2] [H : pointed A] := point A
+  definition pt [unfold 2] [H : pointed A] := point A
   protected abbreviation Mk [constructor] := @Pointed.mk
   protected definition mk' [constructor] (A : Type) [H : pointed A] : Pointed :=
   Pointed.mk (point A)
@@ -100,7 +100,7 @@ open pmap
 
 namespace pointed
 
-  abbreviation respect_pt [unfold-c 3] := @pmap.resp_pt
+  abbreviation respect_pt [unfold 3] := @pmap.resp_pt
   notation `map₊` := pmap
   infix `→*`:30 := pmap
   attribute pmap.map [coercion]
@@ -129,8 +129,8 @@ namespace pointed
     (homotopy_pt : homotopy pt ⬝ respect_pt g = respect_pt f)
 
   infix `~*`:50 := phomotopy
-  abbreviation to_homotopy_pt [unfold-c 5] := @phomotopy.homotopy_pt
-  abbreviation to_homotopy [coercion] [unfold-c 5] (p : f ~* g) : Πa, f a = g a :=
+  abbreviation to_homotopy_pt [unfold 5] := @phomotopy.homotopy_pt
+  abbreviation to_homotopy [coercion] [unfold 5] (p : f ~* g) : Πa, f a = g a :=
   phomotopy.homotopy p
 
   definition passoc (h : C →* D) (g : B →* C) (f : A →* B) : (h ∘* g) ∘* f ~* h ∘* (g ∘* f) :=
@@ -206,9 +206,7 @@ namespace pointed
   begin
   revert A B f, induction n with n IH,
   { intros A B f, exact f},
-  { intros A B f, rewrite [↑Iterated_loop_space,↓Iterated_loop_space n (Ω A),
-      ↑Iterated_loop_space, ↓Iterated_loop_space n (Ω B)],
-    apply IH (Ω A),
+  { intros A B f, esimp [Iterated_loop_space], apply IH (Ω A),
     { esimp, fconstructor,
         intro q, refine !respect_pt⁻¹ ⬝ ap f q ⬝ !respect_pt,
         esimp, apply con.left_inv}}

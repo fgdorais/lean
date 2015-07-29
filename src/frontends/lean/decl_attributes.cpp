@@ -11,7 +11,7 @@ Author: Leonardo de Moura
 #include "library/relation_manager.h"
 #include "library/user_recursors.h"
 #include "library/coercion.h"
-#include "library/simplifier/rewrite_rule_set.h"
+#include "library/simplifier/simp_rule_set.h"
 #include "frontends/lean/decl_attributes.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/tokens.h"
@@ -32,14 +32,15 @@ decl_attributes::decl_attributes(bool is_abbrev, bool persistent):
     m_is_class               = false;
     m_is_parsing_only        = false;
     m_has_multiple_instances = false;
-    m_unfold_f_hint          = false;
+    m_unfold_full_hint       = false;
     m_constructor_hint       = false;
     m_symm                   = false;
     m_trans                  = false;
     m_refl                   = false;
     m_subst                  = false;
     m_recursor               = false;
-    m_rewrite                = false;
+    m_simp                   = false;
+    m_congr                  = false;
 }
 
 void decl_attributes::parse(buffer<name> const & ns, parser & p) {
@@ -104,19 +105,25 @@ void decl_attributes::parse(buffer<name> const & ns, parser & p) {
                                    "marked as '[parsing-only]'", pos);
             m_is_parsing_only = true;
             p.next();
-        } else if (p.curr_is_token(get_unfold_f_tk())) {
+        } else if (p.curr_is_token(get_unfold_full_tk())) {
             p.next();
-            m_unfold_f_hint = true;
+            m_unfold_full_hint = true;
         } else if (p.curr_is_token(get_constructor_tk())) {
             p.next();
             m_constructor_hint = true;
-        } else if (p.curr_is_token(get_unfold_c_tk())) {
+        } else if (p.curr_is_token(get_unfold_tk())) {
             p.next();
-            unsigned r = p.parse_small_nat();
-            if (r == 0)
-                throw parser_error("invalid '[unfold-c]' attribute, value must be greater than 0", pos);
-            m_unfold_c_hint = r - 1;
-            p.check_token_next(get_rbracket_tk(), "invalid 'unfold-c', ']' expected");
+            buffer<unsigned> idxs;
+            while (true) {
+                unsigned r = p.parse_small_nat();
+                if (r == 0)
+                    throw parser_error("invalid '[unfold]' attribute, value must be greater than 0", pos);
+                idxs.push_back(r-1);
+                if (p.curr_is_token(get_rbracket_tk()))
+                    break;
+            }
+            p.next();
+            m_unfold_hint = to_list(idxs);
         } else if (p.curr_is_token(get_symm_tk())) {
             p.next();
             m_symm = true;
@@ -129,9 +136,12 @@ void decl_attributes::parse(buffer<name> const & ns, parser & p) {
         } else if (p.curr_is_token(get_subst_tk())) {
             p.next();
             m_subst = true;
-        } else if (p.curr_is_token(get_rewrite_attr_tk())) {
+        } else if (p.curr_is_token(get_simp_attr_tk())) {
             p.next();
-            m_rewrite = true;
+            m_simp = true;
+        } else if (p.curr_is_token(get_congr_attr_tk())) {
+            p.next();
+            m_congr = true;
         } else if (p.curr_is_token(get_recursor_tk())) {
             p.next();
             if (!p.curr_is_token(get_rbracket_tk())) {
@@ -192,10 +202,10 @@ environment decl_attributes::apply(environment env, io_state const & ios, name c
             env = set_reducible(env, d, reducible_status::Semireducible, m_persistent);
         if (m_is_quasireducible)
             env = set_reducible(env, d, reducible_status::Quasireducible, m_persistent);
-        if (m_unfold_c_hint)
-            env = add_unfold_c_hint(env, d, *m_unfold_c_hint, m_persistent);
-        if (m_unfold_f_hint)
-            env = add_unfold_f_hint(env, d, m_persistent);
+        if (m_unfold_hint)
+            env = add_unfold_hint(env, d, m_unfold_hint, m_persistent);
+        if (m_unfold_full_hint)
+            env = add_unfold_full_hint(env, d, m_persistent);
     }
     if (m_constructor_hint)
         env = add_constructor_hint(env, d, m_persistent);
@@ -211,8 +221,10 @@ environment decl_attributes::apply(environment env, io_state const & ios, name c
         env = add_user_recursor(env, d, m_recursor_major_pos, m_persistent);
     if (m_is_class)
         env = add_class(env, d, m_persistent);
-    if (m_rewrite)
-        env = add_rewrite_rule(env, d, m_persistent);
+    if (m_simp)
+        env = add_simp_rule(env, d, m_persistent);
+    if (m_congr)
+        env = add_congr_rule(env, d, m_persistent);
     if (m_has_multiple_instances)
         env = mark_multiple_instances(env, d, m_persistent);
     return env;
@@ -221,16 +233,18 @@ environment decl_attributes::apply(environment env, io_state const & ios, name c
 void decl_attributes::write(serializer & s) const {
     s << m_is_abbrev << m_persistent << m_is_instance << m_is_trans_instance << m_is_coercion
       << m_is_reducible << m_is_irreducible << m_is_semireducible << m_is_quasireducible
-      << m_is_class << m_is_parsing_only << m_has_multiple_instances << m_unfold_f_hint
+      << m_is_class << m_is_parsing_only << m_has_multiple_instances << m_unfold_full_hint
       << m_constructor_hint << m_symm << m_trans << m_refl << m_subst << m_recursor
-      << m_rewrite << m_recursor_major_pos << m_priority << m_unfold_c_hint;
+      << m_simp << m_congr << m_recursor_major_pos << m_priority;
+    write_list(s, m_unfold_hint);
 }
 
 void decl_attributes::read(deserializer & d) {
     d >> m_is_abbrev >> m_persistent >> m_is_instance >> m_is_trans_instance >> m_is_coercion
       >> m_is_reducible >> m_is_irreducible >> m_is_semireducible >> m_is_quasireducible
-      >> m_is_class >> m_is_parsing_only >> m_has_multiple_instances >> m_unfold_f_hint
+      >> m_is_class >> m_is_parsing_only >> m_has_multiple_instances >> m_unfold_full_hint
       >> m_constructor_hint >> m_symm >> m_trans >> m_refl >> m_subst >> m_recursor
-      >> m_rewrite >> m_recursor_major_pos >> m_priority >> m_unfold_c_hint;
+      >> m_simp >> m_congr >> m_recursor_major_pos >> m_priority;
+    m_unfold_hint = read_list<unsigned>(d);
 }
 }

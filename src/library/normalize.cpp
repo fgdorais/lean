@@ -23,36 +23,38 @@ namespace lean {
 /**
    \brief unfold hints instruct the normalizer (and simplifier) that
    a function application. We have two kinds of hints:
-   - unfold_c (f a_1 ... a_i ... a_n) should be unfolded
+   - [unfold] (f a_1 ... a_i ... a_n) should be unfolded
      when argument a_i is a constructor.
-   - unfold_f (f a_1 ... a_i ... a_n) should be unfolded when it is fully applied.
+   - [unfold-full] (f a_1 ... a_i ... a_n) should be unfolded when it is fully applied.
    - constructor (f ...) should be unfolded when it is the major premise of a recursor-like operator
 */
 struct unfold_hint_entry {
-    enum kind {UnfoldC, UnfoldF, UnfoldM};
-    kind     m_kind; //!< true if it is an unfold_c hint
-    bool     m_add;  //!< add/remove hint
-    name     m_decl_name;
-    unsigned m_arg_idx;
-    unfold_hint_entry():m_kind(UnfoldC), m_add(false), m_arg_idx(0) {}
-    unfold_hint_entry(kind k, bool add, name const & n, unsigned idx):
-        m_kind(k), m_add(add), m_decl_name(n), m_arg_idx(idx) {}
+    enum kind {Unfold, UnfoldFull, Constructor};
+    kind           m_kind; //!< true if it is an unfold_c hint
+    bool           m_add;  //!< add/remove hint
+    name           m_decl_name;
+    list<unsigned> m_arg_idxs; //!< only relevant if m_kind == Unfold
+    unfold_hint_entry():m_kind(Unfold), m_add(false) {}
+    unfold_hint_entry(kind k, bool add, name const & n):
+        m_kind(k), m_add(add), m_decl_name(n) {}
+    unfold_hint_entry(bool add, name const & n, list<unsigned> const & idxs):
+        m_kind(Unfold), m_add(add), m_decl_name(n), m_arg_idxs(idxs) {}
 };
 
-unfold_hint_entry mk_add_unfold_c_entry(name const & n, unsigned idx) { return unfold_hint_entry(unfold_hint_entry::UnfoldC, true, n, idx); }
-unfold_hint_entry mk_erase_unfold_c_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::UnfoldC, false, n, 0); }
-unfold_hint_entry mk_add_unfold_f_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::UnfoldF, true, n, 0); }
-unfold_hint_entry mk_erase_unfold_f_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::UnfoldF, false, n, 0); }
-unfold_hint_entry mk_add_constructor_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::UnfoldM, true, n, 0); }
-unfold_hint_entry mk_erase_constructor_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::UnfoldM, false, n, 0); }
+unfold_hint_entry mk_add_unfold_entry(name const & n, list<unsigned> const & idxs) { return unfold_hint_entry(true, n, idxs); }
+unfold_hint_entry mk_erase_unfold_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::Unfold, false, n); }
+unfold_hint_entry mk_add_unfold_full_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::UnfoldFull, true, n); }
+unfold_hint_entry mk_erase_unfold_full_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::UnfoldFull, false, n); }
+unfold_hint_entry mk_add_constructor_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::Constructor, true, n); }
+unfold_hint_entry mk_erase_constructor_entry(name const & n) { return unfold_hint_entry(unfold_hint_entry::Constructor, false, n); }
 
 static name * g_unfold_hint_name = nullptr;
 static std::string * g_key = nullptr;
 
 struct unfold_hint_state {
-    name_map<unsigned>  m_unfold_c;
-    name_set            m_unfold_f;
-    name_set            m_constructor;
+    name_map<list<unsigned>> m_unfold;
+    name_set                 m_unfold_full;
+    name_set                 m_constructor;
 };
 
 struct unfold_hint_config {
@@ -61,19 +63,19 @@ struct unfold_hint_config {
 
     static void add_entry(environment const &, io_state const &, state & s, entry const & e) {
         switch (e.m_kind) {
-        case unfold_hint_entry::UnfoldC:
+        case unfold_hint_entry::Unfold:
             if (e.m_add)
-                s.m_unfold_c.insert(e.m_decl_name, e.m_arg_idx);
+                s.m_unfold.insert(e.m_decl_name, e.m_arg_idxs);
             else
-                s.m_unfold_c.erase(e.m_decl_name);
+                s.m_unfold.erase(e.m_decl_name);
             break;
-        case unfold_hint_entry::UnfoldF:
+        case unfold_hint_entry::UnfoldFull:
             if (e.m_add)
-                s.m_unfold_f.insert(e.m_decl_name);
+                s.m_unfold_full.insert(e.m_decl_name);
             else
-                s.m_unfold_f.erase(e.m_decl_name);
+                s.m_unfold_full.erase(e.m_decl_name);
             break;
-        case unfold_hint_entry::UnfoldM:
+        case unfold_hint_entry::Constructor:
             if (e.m_add)
                 s.m_constructor.insert(e.m_decl_name);
             else
@@ -88,13 +90,17 @@ struct unfold_hint_config {
         return *g_key;
     }
     static void  write_entry(serializer & s, entry const & e) {
-        s << static_cast<char>(e.m_kind) << e.m_add << e.m_decl_name << e.m_arg_idx;
+        s << static_cast<char>(e.m_kind) << e.m_add << e.m_decl_name;
+        if (e.m_kind == unfold_hint_entry::Unfold)
+            write_list(s, e.m_arg_idxs);
     }
     static entry read_entry(deserializer & d) {
         char k;
         entry e;
-        d >> k >> e.m_add >> e.m_decl_name >> e.m_arg_idx;
+        d >> k >> e.m_add >> e.m_decl_name;
         e.m_kind = static_cast<unfold_hint_entry::kind>(k);
+        if (e.m_kind == unfold_hint_entry::Unfold)
+            e.m_arg_idxs = read_list<unsigned>(d);
         return e;
     }
     static optional<unsigned> get_fingerprint(entry const & e) {
@@ -105,39 +111,40 @@ struct unfold_hint_config {
 template class scoped_ext<unfold_hint_config>;
 typedef scoped_ext<unfold_hint_config> unfold_hint_ext;
 
-environment add_unfold_c_hint(environment const & env, name const & n, unsigned idx, bool persistent) {
+environment add_unfold_hint(environment const & env, name const & n, list<unsigned> const & idxs, bool persistent) {
+    lean_assert(idxs);
     declaration const & d = env.get(n);
     if (!d.is_definition())
-        throw exception("invalid unfold-c hint, declaration must be a non-opaque definition");
-    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_add_unfold_c_entry(n, idx), persistent);
+        throw exception("invalid [unfold] hint, declaration must be a non-opaque definition");
+    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_add_unfold_entry(n, idxs), persistent);
 }
 
-optional<unsigned> has_unfold_c_hint(environment const & env, name const & d) {
+list<unsigned> has_unfold_hint(environment const & env, name const & d) {
     unfold_hint_state const & s = unfold_hint_ext::get_state(env);
-    if (auto it = s.m_unfold_c.find(d))
-        return optional<unsigned>(*it);
+    if (auto it = s.m_unfold.find(d))
+        return list<unsigned>(*it);
     else
-        return optional<unsigned>();
+        return list<unsigned>();
 }
 
-environment erase_unfold_c_hint(environment const & env, name const & n, bool persistent) {
-    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_erase_unfold_c_entry(n), persistent);
+environment erase_unfold_hint(environment const & env, name const & n, bool persistent) {
+    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_erase_unfold_entry(n), persistent);
 }
 
-environment add_unfold_f_hint(environment const & env, name const & n, bool persistent) {
+environment add_unfold_full_hint(environment const & env, name const & n, bool persistent) {
     declaration const & d = env.get(n);
     if (!d.is_definition())
-        throw exception("invalid unfold-f hint, declaration must be a non-opaque definition");
-    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_add_unfold_f_entry(n), persistent);
+        throw exception("invalid [unfold-full] hint, declaration must be a non-opaque definition");
+    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_add_unfold_full_entry(n), persistent);
 }
 
-bool has_unfold_f_hint(environment const & env, name const & d) {
+bool has_unfold_full_hint(environment const & env, name const & d) {
     unfold_hint_state const & s = unfold_hint_ext::get_state(env);
-    return s.m_unfold_f.contains(d);
+    return s.m_unfold_full.contains(d);
 }
 
-environment erase_unfold_f_hint(environment const & env, name const & n, bool persistent) {
-    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_erase_unfold_f_entry(n), persistent);
+environment erase_unfold_full_hint(environment const & env, name const & n, bool persistent) {
+    return unfold_hint_ext::add_entry(env, get_dummy_ios(), mk_erase_unfold_full_entry(n), persistent);
 }
 
 environment add_constructor_hint(environment const & env, name const & n, bool persistent) {
@@ -246,14 +253,14 @@ class normalize_fn {
         return update_binding(e, d, b);
     }
 
-    optional<unsigned> has_unfold_c_hint(expr const & f) {
+    list<unsigned> has_unfold_hint(expr const & f) {
         if (!is_constant(f))
-            return optional<unsigned>();
-        return ::lean::has_unfold_c_hint(env(), const_name(f));
+            return list<unsigned>();
+        return ::lean::has_unfold_hint(env(), const_name(f));
     }
 
-    bool has_unfold_f_hint(expr const & f) {
-        return is_constant(f) &&  ::lean::has_unfold_f_hint(env(), const_name(f));
+    bool has_unfold_full_hint(expr const & f) {
+        return is_constant(f) &&  ::lean::has_unfold_full_hint(env(), const_name(f));
     }
 
     optional<expr> is_constructor_like(expr const & e) {
@@ -270,27 +277,39 @@ class normalize_fn {
         }
     }
 
-    optional<expr> unfold_recursor_core(expr const & f, unsigned idx, buffer<expr> & args, bool is_rec) {
-        if (idx < args.size()) {
+    optional<expr> unfold_recursor_core(expr const & f, unsigned i,
+                                        buffer<unsigned> const & idxs, buffer<expr> & args, bool is_rec) {
+        if (i == idxs.size()) {
+            expr new_app = mk_rev_app(f, args);
+            if (is_rec)
+                return some_expr(normalize(new_app));
+            else if (optional<expr> r = unfold_app(env(), new_app))
+                return some_expr(normalize(*r));
+            else
+                return none_expr();
+        } else {
+            unsigned idx = idxs[i];
+            if (idx >= args.size())
+                return none_expr();
             expr & arg = args[args.size() - idx - 1];
-            if (optional<expr> new_arg = is_constructor_like(arg)) {
-                flet<expr> set_arg(arg, *new_arg);
-                expr new_app = mk_rev_app(f, args);
-                if (is_rec)
-                    return some_expr(normalize(new_app));
-                else if (optional<expr> r = unfold_app(env(), new_app))
-                    return some_expr(normalize(*r));
-            }
+            optional<expr> new_arg = is_constructor_like(arg);
+            if (!new_arg)
+                return none_expr();
+            flet<expr> set_arg(arg, *new_arg);
+            return unfold_recursor_core(f, i+1, idxs, args, is_rec);
         }
-        return none_expr();
     }
 
-    optional<expr> unfold_recursor_like(expr const & f, unsigned idx, buffer<expr> & args) {
-        return unfold_recursor_core(f, idx, args, false);
+    optional<expr> unfold_recursor_like(expr const & f, list<unsigned> const & idx_lst, buffer<expr> & args) {
+        buffer<unsigned> idxs;
+        to_buffer(idx_lst, idxs);
+        return unfold_recursor_core(f, 0, idxs, args, false);
     }
 
     optional<expr> unfold_recursor_major(expr const & f, unsigned idx, buffer<expr> & args) {
-        return unfold_recursor_core(f, idx, args, true);
+        buffer<unsigned> idxs;
+        idxs.push_back(idx);
+        return unfold_recursor_core(f, 0, idxs, args, true);
     }
 
     expr normalize_app(expr const & e) {
@@ -305,14 +324,14 @@ class normalize_fn {
                 modified = true;
             a = new_a;
         }
-        if (has_unfold_f_hint(f)) {
+        if (has_unfold_full_hint(f)) {
             if (!is_pi(m_tc.whnf(m_tc.infer(e).first).first)) {
                 if (optional<expr> r = unfold_app(env(), mk_rev_app(f, args)))
                     return normalize(*r);
             }
         }
-        if (auto idx = has_unfold_c_hint(f)) {
-            if (auto r = unfold_recursor_like(f, *idx, args))
+        if (auto idxs = has_unfold_hint(f)) {
+            if (auto r = unfold_recursor_like(f, idxs, args))
                 return *r;
         }
         if (is_constant(f)) {

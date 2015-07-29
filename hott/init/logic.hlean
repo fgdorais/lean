@@ -42,13 +42,13 @@ definition rfl {A : Type} {a : A} := eq.refl a
 namespace eq
   variables {A : Type} {a b c : A}
 
-  definition subst [unfold-c 5] {P : A → Type} (H₁ : a = b) (H₂ : P a) : P b :=
+  definition subst [unfold 5] {P : A → Type} (H₁ : a = b) (H₂ : P a) : P b :=
   eq.rec H₂ H₁
 
-  definition trans [unfold-c 5] (H₁ : a = b) (H₂ : b = c) : a = c :=
+  definition trans [unfold 5] (H₁ : a = b) (H₂ : b = c) : a = c :=
   subst H₂ H₁
 
-  definition symm [unfold-c 4] (H : a = b) : b = a :=
+  definition symm [unfold 4] (H : a = b) : b = a :=
   subst H (refl a)
 
   namespace ops
@@ -60,6 +60,12 @@ end eq
 
 definition congr {A B : Type} {f₁ f₂ : A → B} {a₁ a₂ : A} (H₁ : f₁ = f₂) (H₂ : a₁ = a₂) : f₁ a₁ = f₂ a₂ :=
 eq.subst H₁ (eq.subst H₂ rfl)
+
+theorem congr_arg {A B : Type} (a a' : A) (f : A → B) (Ha : a = a') : f a = f a' :=
+eq.subst Ha rfl
+
+theorem congr_arg2 {A B C : Type} (a a' : A) (b b' : B) (f : A → B → C) (Ha : a = a') (Hb : b = b') : f a b = f a' b' :=
+eq.subst Ha (eq.subst Hb rfl)
 
 section
   variables {A : Type} {a b c: A}

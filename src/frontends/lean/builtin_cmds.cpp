@@ -11,6 +11,7 @@ Author: Leonardo de Moura
 #include "kernel/type_checker.h"
 #include "kernel/abstract.h"
 #include "kernel/instantiate.h"
+#include "kernel/for_each_fn.h"
 #include "kernel/inductive/inductive.h"
 #include "kernel/quotient/quotient.h"
 #include "kernel/hits/hits.h"
@@ -32,7 +33,7 @@ Author: Leonardo de Moura
 #include "library/pp_options.h"
 #include "library/composition_manager.h"
 #include "library/definitional/projection.h"
-#include "library/simplifier/rewrite_rule_set.h"
+#include "library/simplifier/simp_rule_set.h"
 #include "frontends/lean/util.h"
 #include "frontends/lean/parser.h"
 #include "frontends/lean/calc.h"
@@ -68,18 +69,60 @@ static void print_coercions(parser & p, optional<name> const & C) {
         });
 }
 
+struct print_axioms_deps {
+    environment     m_env;
+    io_state_stream m_ios;
+    name_set        m_visited;
+    bool            m_use_axioms;
+    print_axioms_deps(environment const & env, io_state_stream const & ios):
+        m_env(env), m_ios(ios), m_use_axioms(false) {}
+
+    void visit(name const & n) {
+        if (m_visited.contains(n))
+            return;
+        m_visited.insert(n);
+        declaration const & d = m_env.get(n);
+        if (!d.is_definition() && !m_env.is_builtin(n)) {
+            m_use_axioms = true;
+            m_ios << d.get_name() << "\n";
+        }
+        visit(d.get_type());
+        if (d.is_definition())
+            visit(d.get_value());
+    }
+
+    void visit(expr const & e) {
+        for_each(e, [&](expr const & e, unsigned) {
+                if (is_constant(e))
+                    visit(const_name(e));
+                return true;
+            });
+    }
+
+    void operator()(name const & n) {
+        visit(n);
+        if (!m_use_axioms)
+            m_ios << "no axioms" << endl;
+    }
+};
+
 static void print_axioms(parser & p) {
-    bool has_axioms = false;
-    environment const & env = p.env();
-    env.for_each_declaration([&](declaration const & d) {
-            name const & n = d.get_name();
-            if (!d.is_definition() && !env.is_builtin(n)) {
-                p.regular_stream() << n << " : " << d.get_type() << endl;
-                has_axioms = true;
-            }
-        });
-    if (!has_axioms)
-        p.regular_stream() << "no axioms" << endl;
+    if (p.curr_is_identifier()) {
+        name c = p.check_constant_next("invalid 'print axioms', constant expected");
+        print_axioms_deps(p.env(), p.regular_stream())(c);
+    } else {
+        bool has_axioms = false;
+        environment const & env = p.env();
+        env.for_each_declaration([&](declaration const & d) {
+                name const & n = d.get_name();
+                if (!d.is_definition() && !env.is_builtin(n)) {
+                    p.regular_stream() << n << " : " << d.get_type() << endl;
+                    has_axioms = true;
+                }
+            });
+        if (!has_axioms)
+            p.regular_stream() << "no axioms" << endl;
+    }
 }
 
 static void print_prefix(parser & p) {
@@ -190,8 +233,10 @@ void print_attributes(parser & p, name const & n) {
         out << " [class]";
     if (is_instance(env, n))
         out << " [instance]";
-    if (is_rewrite_rule(env, n))
-        out << " [rewrite]";
+    if (is_simp_rule(env, n))
+        out << " [simp]";
+    if (is_congr_rule(env, n))
+        out << " [congr]";
     switch (get_reducible_status(env, n)) {
     case reducible_status::Reducible:      out << " [reducible]"; break;
     case reducible_status::Irreducible:    out << " [irreducible]"; break;
@@ -379,17 +424,27 @@ static void print_reducible_info(parser & p, reducible_status s1) {
         out << n << "\n";
 }
 
-static void print_rewrite_sets(parser & p) {
+static void print_simp_rules(parser & p) {
     io_state_stream out = p.regular_stream();
-    rewrite_rule_sets s = get_rewrite_rule_sets(p.env());
-    name prev_eqv;
-    s.for_each([&](name const & eqv, rewrite_rule const & rw) {
-            if (prev_eqv != eqv) {
-                out << "rewrite rules for " << eqv << "\n";
-                prev_eqv = eqv;
-            }
-            out << rw.pp(out.get_formatter()) << "\n";
-        });
+    simp_rule_sets s;
+    name ns;
+    if (p.curr_is_identifier()) {
+        ns = p.get_name_val();
+        p.next();
+        s = get_simp_rule_sets(p.env(), ns);
+    } else {
+        s = get_simp_rule_sets(p.env());
+    }
+    format header;
+    if (!ns.is_anonymous())
+        header = format(" at namespace '") + format(ns) + format("'");
+    out << s.pp_simp(out.get_formatter(), header);
+}
+
+static void print_congr_rules(parser & p) {
+    io_state_stream out = p.regular_stream();
+    simp_rule_sets s = get_simp_rule_sets(p.env());
+    out << s.pp_congr(out.get_formatter());
 }
 
 environment print_cmd(parser & p) {
@@ -494,9 +549,12 @@ environment print_cmd(parser & p) {
         p.next();
         p.check_token_next(get_rbracket_tk(), "invalid 'print [recursor]', ']' expected");
         print_recursor_info(p);
-    } else if (p.curr_is_token(get_rewrite_attr_tk())) {
+    } else if (p.curr_is_token(get_simp_attr_tk())) {
         p.next();
-        print_rewrite_sets(p);
+        print_simp_rules(p);
+    } else if (p.curr_is_token(get_congr_attr_tk())) {
+        p.next();
+        print_congr_rules(p);
     } else if (print_polymorphic(p)) {
     } else {
         throw parser_error("invalid print command", p.pos());
@@ -630,21 +688,9 @@ environment exit_cmd(parser & p) {
 }
 
 environment set_option_cmd(parser & p) {
-    auto id_pos = p.pos();
-    name id = p.check_id_next("invalid set option, identifier (i.e., option name) expected");
-    auto decl_it = get_option_declarations().find(id);
-    if (decl_it == get_option_declarations().end()) {
-        // add "lean" prefix
-        name lean_id = name("lean") + id;
-        decl_it = get_option_declarations().find(lean_id);
-        if (decl_it == get_option_declarations().end()) {
-            throw parser_error(sstream() << "unknown option '" << id
-                               << "', type 'help options.' for list of available options", id_pos);
-        } else {
-            id = lean_id;
-        }
-    }
-    option_kind k = decl_it->second.kind();
+    auto id_kind = parse_option_name(p, "invalid set option, identifier (i.e., option name) expected");
+    name id       = id_kind.first;
+    option_kind k = id_kind.second;
     if (k == BoolOption) {
         if (p.curr_is_token_or_id(get_true_tk()))
             p.set_option(id, true);
@@ -670,6 +716,10 @@ environment set_option_cmd(parser & p) {
     return update_fingerprint(env, p.get_options().hash());
 }
 
+static bool is_next_metaclass_tk(parser const & p) {
+    return p.curr_is_token(get_lbracket_tk()) || p.curr_is_token(get_unfold_hints_bracket_tk());
+}
+
 static name parse_metaclass(parser & p) {
     if (p.curr_is_token(get_lbracket_tk())) {
         p.next();
@@ -690,6 +740,9 @@ static name parse_metaclass(parser & p) {
         if (!is_metaclass(n) && n != get_decls_tk() && n != get_declarations_tk())
             throw parser_error(sstream() << "invalid metaclass name '[" << n << "]'", pos);
         return n;
+    } else if (p.curr_is_token(get_unfold_hints_bracket_tk())) {
+        p.next();
+        return get_unfold_hints_tk();
     } else {
         return name();
     }
@@ -701,7 +754,7 @@ static void parse_metaclasses(parser & p, buffer<name> & r) {
         buffer<name> tmp;
         get_metaclasses(tmp);
         tmp.push_back(get_decls_tk());
-        while (p.curr_is_token(get_lbracket_tk())) {
+        while (is_next_metaclass_tk(p)) {
             name m = parse_metaclass(p);
             tmp.erase_elem(m);
             if (m == get_declarations_tk())
@@ -709,7 +762,7 @@ static void parse_metaclasses(parser & p, buffer<name> & r) {
         }
         r.append(tmp);
     } else {
-        while (p.curr_is_token(get_lbracket_tk())) {
+        while (is_next_metaclass_tk(p)) {
             r.push_back(parse_metaclass(p));
         }
     }
@@ -837,7 +890,7 @@ environment open_export_cmd(parser & p, bool open) {
                 }
             }
         }
-        if (!p.curr_is_token(get_lbracket_tk()) && !p.curr_is_identifier())
+        if (!is_next_metaclass_tk(p) && !p.curr_is_identifier())
             break;
     }
     return update_fingerprint(env, fingerprint);
