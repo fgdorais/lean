@@ -6,7 +6,7 @@ Authors: François G. Dorais
 Category of finite ordinal types.
 -/
 
-import data data.nat data.fin
+import data.nat data.fin
 open nat
 
 namespace fin
