@@ -107,7 +107,7 @@ namespace fin
   definition add.of_sum {m n : nat} : sum (fin m) (fin n) → fin (m + n) :=
   sum.rec add.inl add.inr
 
-  definition add_equiv_sum {m n : nat} : equiv (fin (m + n)) (sum (fin m) (fin n)) :=
+  definition add_equiv_sum (m n : nat) : equiv (fin (m + n)) (sum (fin m) (fin n)) :=
   equiv.mk add.to_sum add.of_sum
     (add.rec
       (λ i, by unfold add.to_sum; rewrite add.eq_rec_inl)
@@ -190,7 +190,7 @@ namespace fin
   definition mul.of_prod {m n : nat} : prod (fin m) (fin n) → fin (m * n) :=
   prod.rec mul.mk
 
-  definition mul_equiv_prod {m n : nat} : equiv (fin (m * n)) (prod (fin m) (fin n)) :=
+  definition mul_equiv_prod (m n : nat) : equiv (fin (m * n)) (prod (fin m) (fin n)) :=
   equiv.mk mul.to_prod mul.of_prod
     (mul.rec (λ i j, by unfold mul.to_prod; rewrite mul.eq_rec_mk))
     (prod.rec (λ i j, by unfold mul.to_prod; unfold mul.of_prod; rewrite mul.eq_rec_mk))
@@ -281,7 +281,7 @@ namespace fin
       rewrite -exp.eq_fn_ev}
   end
 
-  definition exp_equiv_fun {m n : nat} : equiv (fin (m ^ n)) (fin n → fin m) :=
+  definition exp_equiv_fun (m n : nat) : equiv (fin (m ^ n)) (fin n → fin m) :=
   equiv.mk exp.ev exp.fn
     (λ k, eq.symm (exp.eq_fn_ev k))
     (λ f, eq.symm (exp.eq_ev_fn f))
